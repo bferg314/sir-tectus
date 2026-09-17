@@ -178,7 +178,15 @@ export class Enemy {
     for (let i = 0; i < players.length; i++) {
       const p = players[i];
       if (p.isAlive && !p.isInBubble) {
-        const d = Math.hypot(p.x - this.x, p.y - this.y);
+        const dx = p.x - this.x;
+        const dy = p.y - this.y;
+        const d = Math.hypot(dx, dy);
+
+        // Prevent archers from targeting players directly underneath through multi-story floors
+        if (this.type === 'archer' && Math.abs(dy) > 200 && Math.abs(dx) < 180) {
+          continue;
+        }
+
         if (d < nearestDist) {
           nearestDist = d;
           this.targetPlayer = p;
@@ -348,6 +356,7 @@ export class Enemy {
       }
     } else {
       // Ground enemies: Grunt, Archer, Vanguard, Pyromancer, Berserker
+      const prevY = this.y;
       this.vy += 880 * dt; // Gravity
 
       if (this.isAggro && this.targetPlayer) {
@@ -391,11 +400,17 @@ export class Enemy {
             this.vx = 0;
             if (this.attackTelegraphTimer <= 0) {
               this.attackCooldown = 2.4;
+              const targetDx = this.targetPlayer ? this.targetPlayer.x - (this.x + dirX * 18) : dirX * 100;
+              const targetDy = this.targetPlayer ? (this.targetPlayer.y - 18) - (this.y - 18) : -50;
+              const targetDist = Math.hypot(targetDx, targetDy) || 1;
+              const arrowSpeed = 460;
+              const arrowVx = (targetDx / targetDist) * arrowSpeed;
+              const arrowVy = Math.max(-140, Math.min(180, (targetDy / targetDist) * arrowSpeed - 40));
               projectiles.push(new Projectile(
                 this.x + dirX * 18,
                 this.y - 18,
-                dirX * 460,
-                -50,
+                arrowVx,
+                arrowVy,
                 'arrow',
                 -1,
                 1
@@ -811,15 +826,33 @@ export class Enemy {
       }
 
       // Platform collisions for ground enemies
+      const halfW = this.width * 0.5;
       for (let i = 0; i < platforms.length; i++) {
         const p = platforms[i];
         if (p.isCrumbled) continue;
-        if (
-          this.x + this.width * 0.5 > p.x &&
-          this.x - this.width * 0.5 < p.x + p.w &&
-          this.y > p.y && this.y - this.height < p.y + p.h
-        ) {
-          if (this.vy > 0) {
+
+        if (!p.oneWay) {
+          // Solid boundary blocks & terrain platforms
+          if (
+            this.x + halfW > p.x && this.x - halfW < p.x + p.w &&
+            this.y > p.y && this.y - this.height < p.y + p.h
+          ) {
+            if (this.vy >= 0 && prevY <= p.y + 12) {
+              // Land on solid surface
+              this.y = p.y;
+              this.vy = 0;
+            } else if (this.vy < 0 && (this.y - this.height) < (p.y + p.h) && (prevY - this.height) >= (p.y + p.h - 12)) {
+              // Bonk underside of solid ceiling / block
+              this.y = p.y + p.h + this.height;
+              this.vy = Math.max(0, -this.vy * 0.2);
+            }
+          }
+        } else {
+          // One-way ledges: only land on top when falling downward from above
+          if (
+            this.x + halfW > p.x && this.x - halfW < p.x + p.w &&
+            prevY <= p.y + 12 && this.y >= p.y && this.vy >= 0
+          ) {
             this.y = p.y;
             this.vy = 0;
           }
@@ -827,8 +860,30 @@ export class Enemy {
       }
     }
 
+    // Position integration for all enemies
     this.x += this.vx * dt;
     this.y += this.vy * dt;
+
+    // Hard World Bounds Clamping for ALL Enemies (Ground & Aerial)
+    // The ceiling solid boundary block is at y = -20..20, so minimum playable Y is 24 + height
+    const minEnemyY = 24 + this.height;
+    if (this.y < minEnemyY) {
+      this.y = minEnemyY;
+      if (this.vy < 0) this.vy = Math.max(0, -this.vy * 0.2);
+    }
+    // Floor boundary (level height is 1800; floor platform at 1760..1820)
+    if (this.y > 1760) {
+      this.y = 1760;
+      this.vy = 0;
+    }
+    // Lateral world boundaries (x = 24 to 3176)
+    if (this.x < 24) {
+      this.x = 24;
+      this.vx = Math.max(0, this.vx);
+    } else if (this.x > 3176) {
+      this.x = 3176;
+      this.vx = Math.min(0, this.vx);
+    }
   }
 
   public takeDamage(amount: number, kbX: number = 0, kbY: number = -170): boolean {
@@ -1004,16 +1059,20 @@ export class Enemy {
 
     // Archer aiming laser line telegraph
     if (this.type === 'archer' && this.attackTelegraphTimer > 0 && this.targetPlayer) {
-      const dirX = this.facingLeft ? -1 : 1;
-      ctx.save();
-      ctx.strokeStyle = 'rgba(239, 71, 111, 0.65)';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(dirX * 12, -18);
-      ctx.lineTo(this.targetPlayer.x - this.x, (this.targetPlayer.y - 18) - this.y);
-      ctx.stroke();
-      ctx.restore();
+      const dy = Math.abs(this.targetPlayer.y - this.y);
+      const dx = Math.abs(this.targetPlayer.x - this.x);
+      if (dy < 240 || dx > 140) {
+        const dirX = this.facingLeft ? -1 : 1;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(239, 71, 111, 0.65)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(dirX * 12, -18);
+        ctx.lineTo(this.targetPlayer.x - this.x, (this.targetPlayer.y - 18) - this.y);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
 
     // Hit Shake

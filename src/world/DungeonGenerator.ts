@@ -359,7 +359,8 @@ export class DungeonGenerator {
       const stair3: Platform = { x: rx + 90, y: ry + 330, w: 240, h: 22, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
       const stair4: Platform = { x: rx + 250, y: ry + 325, w: 190, h: 22, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
       const topBalcony: Platform = { x: rx + 120, y: ry + 130, w: 220, h: 22, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
-      const ceilingStep: Platform = { x: rx + 200, y: ry + 65, w: 180, h: 22, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
+      const ceilingStepY = ry + (ry === 0 ? 105 : 65);
+      const ceilingStep: Platform = { x: rx + 200, y: ceilingStepY, w: 180, h: 22, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
 
       platforms.push(exitDais, stair1, stair2, stair3, stair4, topBalcony, ceilingStep);
 
@@ -398,12 +399,13 @@ export class DungeonGenerator {
       const p5W = scaleW(250);
       const p6W = scaleW(260);
 
+      const p6Y = ry + (ry === 0 ? 115 : 65);
       const p1: Platform = { x: rx + 60, y: ry + 510, w: p1W, h: 22, oneWay: true, slippery: isIce, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
       const p2: Platform = { x: rx + 280, y: ry + 420, w: p2W, h: 22, oneWay: true, bouncy: isForest ? 1.6 : undefined, slippery: isIce, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
       const p3: Platform = { x: rx + 500, y: ry + 330, w: p3W, h: 22, oneWay: true, conveyor: isTech ? (Math.random() > 0.5 ? 60 : -60) : undefined, crumble: shouldCrumble(0.35), crumbleTimer: 0.65, slippery: isIce, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
       const p4: Platform = { x: rx + 280, y: ry + 240, w: p4W, h: 22, oneWay: true, slippery: isIce, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
       const p5: Platform = { x: rx + 60, y: ry + 150, w: p5W, h: 22, oneWay: true, crumble: shouldCrumble(0.3), crumbleTimer: 0.65, slippery: isIce, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
-      const p6: Platform = { x: rx + 280, y: ry + 65, w: p6W, h: 22, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
+      const p6: Platform = { x: rx + 280, y: p6Y, w: p6W, h: 22, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
 
       platforms.push(p1, p2, p3, p4, p5, p6);
 
@@ -445,7 +447,8 @@ export class DungeonGenerator {
       const right2: Platform = { x: rx + rw - tW - 50, y: ry + 275, w: tW, h: 22, oneWay: true, crumble: shouldCrumble(0.4), crumbleTimer: 0.65, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
       const right3: Platform = { x: rx + rw - tW - 50, y: ry + 155, w: tW, h: 22, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
       // High Skyway
-      const skyway: Platform = { x: rx + 200, y: ry + 65, w: 400, h: 24, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
+      const skywayY = ry + (ry === 0 ? 100 : 65);
+      const skyway: Platform = { x: rx + 200, y: skywayY, w: 400, h: 24, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
 
       platforms.push(lowerBridge, left1, left2, left3, right1, right2, right3, skyway);
 
@@ -467,7 +470,9 @@ export class DungeonGenerator {
       platforms.push(hazardBed);
 
       if (tier === 'hard') {
-        // Hard tier: Swinging pendulum guillotine over the chasm!
+        // Hard tier: Swinging pendulum guillotine over the bridge!
+        const anchorY = skywayY + 23;
+        const bladeLen = (ry + 490) - anchorY - 15;
         hazards.push({
           x: hazardX,
           y: hazardBedY - 14,
@@ -476,8 +481,8 @@ export class DungeonGenerator {
           damage: 1,
           type: 'blade_trap',
           anchorX: rx + rw * 0.5,
-          anchorY: ry + 160,
-          length: 220,
+          anchorY: anchorY,
+          length: bladeLen,
           angle: 0,
           swingSpeed: 2.2
         });
@@ -538,7 +543,8 @@ export class DungeonGenerator {
       const s2: Platform = { x: rx + rw - sW - 80, y: ry + 340, w: sW, h: 20, oneWay: true, crumble: shouldCrumble(0.4), crumbleTimer: 0.65, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
       const s3: Platform = { x: rx + 80, y: ry + 255, w: sW, h: 20, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
       const s4: Platform = { x: rx + rw - sW - 80, y: ry + 170, w: sW, h: 20, oneWay: true, crumble: shouldCrumble(0.4), crumbleTimer: 0.65, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
-      const s5: Platform = { x: rx + 270, y: ry + 75, w: 260, h: 22, oneWay: true, bouncy: isForest ? 1.6 : undefined, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
+      const s5Y = ry + (ry === 0 ? 115 : 75);
+      const s5: Platform = { x: rx + 270, y: s5Y, w: 260, h: 22, oneWay: true, bouncy: isForest ? 1.6 : undefined, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
 
       platforms.push(bouncer, s1, s2, s3, s4, s5);
 
@@ -564,7 +570,8 @@ export class DungeonGenerator {
       const aerialType: EnemyType = (biome.uniqueEnemy === 'aether_valkyrie' || biome.uniqueEnemy === 'void_weaver')
         ? (biome.uniqueEnemy as EnemyType)
         : (tier === 'hard' ? 'wraith' : 'floater');
-      enemySpawns.push({ x: rx + rw * 0.5, y: ry + 140, type: aerialType });
+      const aerialY = ry + (ry === 0 ? 190 : 140);
+      enemySpawns.push({ x: rx + rw * 0.5, y: aerialY, type: aerialType });
     } else {
       // Arena Coliseum & Balcony Halls
       const lowW = scaleW(230);
@@ -578,7 +585,8 @@ export class DungeonGenerator {
       const dais: Platform = { x: rx + 230, y: ry + 250, w: scaleW(340), h: 24, oneWay: true, crumble: shouldCrumble(0.5) || isIce, crumbleTimer: 0.65, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
       const highL: Platform = { x: rx + 80, y: ry + 145, w: highW, h: 22, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
       const highR: Platform = { x: rx + rw - highW - 80, y: ry + 145, w: highW, h: 22, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
-      const topP: Platform = { x: rx + 270, y: ry + 65, w: 260, h: 22, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
+      const topPY = ry + (ry === 0 ? 110 : 65);
+      const topP: Platform = { x: rx + 270, y: topPY, w: 260, h: 22, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
 
       platforms.push(lowL, lowR, midL, midR, dais, highL, highR, topP);
 

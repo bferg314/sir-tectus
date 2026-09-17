@@ -171,7 +171,7 @@ export class Game {
     this.loadLevel();
   }
 
-  private loadLevel(): void {
+  public loadLevel(): void {
     const isMap5 = this.runManager.currentStage === 5;
     const allowSecrets = SaveManager.isTrueEndingUnlocked;
 
@@ -480,14 +480,14 @@ export class Game {
             }
           }
         } else if (h.type === 'blade_trap') {
-          // Pendulum blade contact
+          // Pendulum blade contact with double crescent axe head
           const anchorX = h.anchorX ?? (h.x + h.w * 0.5);
           const anchorY = h.anchorY ?? (h.y - 120);
           const len = h.length ?? 120;
           const bladeX = anchorX + Math.sin(h.angle ?? 0) * len;
           const bladeY = anchorY + Math.cos(h.angle ?? 0) * len;
           const dBlade = Math.hypot(bladeX - p.x, bladeY - (p.y - 20));
-          if (dBlade < 30) {
+          if (dBlade < 40) {
             const swingDir = Math.cos(h.timer ?? 0) >= 0 ? 1 : -1;
             this.damagePlayer(p, h.damage, swingDir * 320, -260);
             this.sound.playSwordSwing(0.8);
@@ -1233,6 +1233,23 @@ export class Game {
           botData.jumpHoldTimer = 0.35;
           botData.jumpCooldown = 1.0;
         }
+      }
+
+      // Evade swinging pendulum blade trap if nearby and low
+      const bladeDanger = this.currentLevel.hazards.find(h => {
+        if (h.type !== 'blade_trap') return false;
+        const anchorX = h.anchorX ?? (h.x + h.w * 0.5);
+        const anchorY = h.anchorY ?? (h.y - 120);
+        const len = h.length ?? 120;
+        const bladeX = anchorX + Math.sin(h.angle ?? 0) * len;
+        const bladeY = anchorY + Math.cos(h.angle ?? 0) * len;
+        return Math.hypot(bladeX - bot.x, bladeY - (bot.y - 20)) < 75;
+      });
+      if (bladeDanger) {
+        const anchorX = bladeDanger.anchorX ?? (bladeDanger.x + bladeDanger.w * 0.5);
+        const bladeX = anchorX + Math.sin(bladeDanger.angle ?? 0) * (bladeDanger.length ?? 120);
+        const escapeDir = bot.x < bladeX ? -1 : 1;
+        input.moveX = escapeDir;
       }
     }
 

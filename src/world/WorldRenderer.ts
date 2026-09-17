@@ -920,54 +920,186 @@ export class WorldRenderer {
         const bladeX = anchorX + Math.sin(angle) * length;
         const bladeY = anchorY + Math.cos(angle) * length;
 
-        // Ceiling Anchor Pivot
+        // 1. Ceiling Anchor Bracket & Bearing Housing
         ctx.fillStyle = '#0f172a';
-        ctx.beginPath();
-        ctx.arc(anchorX, anchorY, 9, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#eab308';
-        ctx.beginPath();
-        ctx.arc(anchorX, anchorY, 4, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Iron Chain Links
-        ctx.strokeStyle = '#64748b';
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(anchorX, anchorY);
-        ctx.lineTo(bladeX, bladeY);
-        ctx.stroke();
-
-        // Swinging Crescent Guillotine Axe Head
-        ctx.save();
-        ctx.translate(bladeX, bladeY);
-        ctx.rotate(-angle);
-
-        // Motion blur sheen
-        ctx.strokeStyle = 'rgba(241, 245, 249, 0.35)';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.arc(0, 0, 24, -Math.PI * 0.35, Math.PI * 0.35);
-        ctx.stroke();
-
-        // Steel Crescent Blade Head
+        ctx.fillRect(anchorX - 18, anchorY - 8, 36, 10);
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(anchorX - 16, anchorY - 7, 32, 8);
+        // Rivet bolts on bracket
         ctx.fillStyle = '#cbd5e1';
         ctx.beginPath();
-        ctx.arc(0, 0, 22, -Math.PI * 0.45, Math.PI * 0.45);
-        ctx.lineTo(0, -6);
-        ctx.closePath();
+        ctx.arc(anchorX - 11, anchorY - 3, 2, 0, Math.PI * 2);
+        ctx.arc(anchorX + 11, anchorY - 3, 2, 0, Math.PI * 2);
+        ctx.fill();
+        // Pivot Bearing Hub
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.arc(anchorX, anchorY, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        // Golden brass axle cap
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(anchorX, anchorY, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(anchorX, anchorY, 2, 0, Math.PI * 2);
         ctx.fill();
 
-        // Polished razor edge highlight
-        ctx.strokeStyle = '#f8fafc';
+        // 2. Heavy Iron Chain Links
+        const numLinks = Math.max(4, Math.floor(length / 15));
+        const dx = (bladeX - anchorX) / numLinks;
+        const dy = (bladeY - anchorY) / numLinks;
+        const linkLen = 14;
+
+        for (let li = 0; li < numLinks; li++) {
+          const lx = anchorX + dx * (li + 0.5);
+          const ly = anchorY + dy * (li + 0.5);
+          const isAlternate = li % 2 === 1;
+
+          ctx.save();
+          ctx.translate(lx, ly);
+          ctx.rotate(angle);
+
+          if (isAlternate) {
+            // Front-facing oval link
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 4.5;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 3.5, linkLen * 0.45, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.ellipse(-1, 0, 1.5, linkLen * 0.35, 0, 0, Math.PI * 2);
+            ctx.stroke();
+          } else {
+            // Side-facing cylindrical interlock link
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(-2.5, -linkLen * 0.4, 5, linkLen * 0.8);
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(-1.5, -linkLen * 0.35, 3, linkLen * 0.7);
+          }
+          ctx.restore();
+        }
+
+        // 3. Executioner's Double Crescent Blade
+        ctx.save();
+        ctx.translate(bladeX, bladeY);
+        ctx.rotate(angle); // RIGID ATTACHMENT: tilts WITH the pendulum!
+
+        // Dynamic Speed Sheen / Motion Arc
+        const swingSpeed = Math.abs(Math.cos(h.timer ?? 0));
+        if (swingSpeed > 0.3) {
+          const blurAlpha = Math.min(0.45, swingSpeed * 0.45);
+          ctx.strokeStyle = `rgba(241, 245, 249, ${blurAlpha})`;
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.arc(0, 4, 38, Math.PI * 0.1, Math.PI * 0.9);
+          ctx.stroke();
+        }
+
+        // Blade Mounting Collar / Socket
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(-9, -12, 18, 16);
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(-7, -10, 14, 12);
+        // Collar reinforcement bands
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillRect(-8, -8, 16, 2.5);
+        ctx.fillRect(-8, -1, 16, 2.5);
+
+        // Main Heavy Steel Crescent Axe Body
+        // Symmetrical double-horned bearded axe
+        ctx.beginPath();
+        // Left horn tip: (-38, -6)
+        ctx.moveTo(-38, -6);
+        // Top concave inner curve leading to hub
+        ctx.quadraticCurveTo(-16, 6, 0, 6);
+        // Right top inner curve to right horn tip
+        ctx.quadraticCurveTo(16, 6, 38, -6);
+        // Outer curved cutting edge down to belly and across to left horn
+        ctx.bezierCurveTo(44, 16, 22, 30, 0, 30);
+        ctx.bezierCurveTo(-22, 30, -44, 16, -38, -6);
+        ctx.closePath();
+
+        // Dark gunmetal steel body fill
+        const bladeGrad = ctx.createLinearGradient(0, -6, 0, 30);
+        bladeGrad.addColorStop(0, '#475569');
+        bladeGrad.addColorStop(0.5, '#1e293b');
+        bladeGrad.addColorStop(1, '#0f172a');
+        ctx.fillStyle = bladeGrad;
+        ctx.fill();
+        ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Center brass axle ring
-        ctx.fillStyle = '#eab308';
+        // Inner Blood Fuller / Ornamental Recesses
         ctx.beginPath();
-        ctx.arc(0, 0, 5, 0, Math.PI * 2);
+        ctx.moveTo(-30, -2);
+        ctx.quadraticCurveTo(-14, 8, -4, 8);
+        ctx.quadraticCurveTo(-14, 16, -28, 6);
+        ctx.closePath();
+        ctx.fillStyle = '#090d16';
         ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(30, -2);
+        ctx.quadraticCurveTo(14, 8, 4, 8);
+        ctx.quadraticCurveTo(14, 16, 28, 6);
+        ctx.closePath();
+        ctx.fillStyle = '#090d16';
+        ctx.fill();
+
+        // Polished Silver Razor Cutting Bevel along bottom edge
+        ctx.beginPath();
+        ctx.moveTo(-38, -6);
+        ctx.bezierCurveTo(-44, 16, -22, 30, 0, 30);
+        ctx.bezierCurveTo(22, 30, 44, 16, 38, -6);
+        ctx.bezierCurveTo(40, 13, 20, 25, 0, 25);
+        ctx.bezierCurveTo(-20, 25, -40, 13, -38, -6);
+        ctx.closePath();
+        const bevelGrad = ctx.createLinearGradient(0, 10, 0, 30);
+        bevelGrad.addColorStop(0, '#94a3b8');
+        bevelGrad.addColorStop(0.6, '#e2e8f0');
+        bevelGrad.addColorStop(1, '#ffffff');
+        ctx.fillStyle = bevelGrad;
+        ctx.fill();
+
+        // Razor-sharp specular line along the absolute edge
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-38, -6);
+        ctx.bezierCurveTo(-44, 16, -22, 30, 0, 30);
+        ctx.bezierCurveTo(22, 30, 44, 16, 38, -6);
+        ctx.stroke();
+
+        // Central Reinforced Spine
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(-3, -2, 6, 20);
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-3, -2, 6, 20);
+
+        // Golden Brass Rivets on Collar and Spine
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(0, -4, 2.5, 0, Math.PI * 2);
+        ctx.arc(0, 4, 2, 0, Math.PI * 2);
+        ctx.arc(0, 12, 2, 0, Math.PI * 2);
+        ctx.arc(-18, 5, 1.8, 0, Math.PI * 2);
+        ctx.arc(18, 5, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.restore();
       } else {
         // Heavy dark steel mounting base plate with rivet bolts
