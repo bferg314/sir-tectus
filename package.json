@@ -1,0 +1,17 @@
+{
+  "name": "sir-tectus",
+  "private": true,
+  "version": "1.0.0",
+  "description": "1-4 player side-scrolling metroidvania local co-op roguelike with swords, arrows, unique knight abilities, and the legendary Golden Sandwich",
+  "author": "Sir Tectus Team",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vite": "^6.2.0"
+  }
+}

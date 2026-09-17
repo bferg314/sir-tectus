@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sir Tectus and the Golden Sandwich</title>
+  <meta name="description" content="1-4 player side-scrolling metroidvania local co-op roguelike with swords, arrows, unique knight abilities, and the legendary Golden Sandwich.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Outfit:wght@400;600;700;800;900&family=Cinzel:wght@600;700;800&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <div id="game-app">
+    <!-- Viewport Container with 16:9 Letterboxing -->
+    <div id="canvas-container">
+      <canvas id="game-canvas" width="1280" height="720"></canvas>
+
+
+      <!-- In-Game HUD Overlay -->
+      <div id="hud-layer" class="ui-layer hidden">
+        <div id="hud-top-container">
+          <!-- Top Info Header: Stage, Biome, Coins, Radar -->
+          <div id="hud-top-header">
+            <div id="hud-stage-badge">
+              <span class="stage-tag" id="hud-stage-num">MAP 1 / 5</span>
+              <span class="biome-name" id="hud-biome-name">VERDANT CANOPY</span>
+              <span class="difficulty-tag easy" id="hud-diff-tag">EASY</span>
+            </div>
+
+            <div id="hud-center-tracker">
+              <div id="hud-coin-counter" class="coin-display">
+                <span class="coin-icon">🟡</span>
+                <span id="hud-coin-tally">0 / 12</span>
+                <span class="coin-label">COINS</span>
+              </div>
+              <div id="hud-sandwich-coin" class="sandwich-coin-badge hidden" title="The Coin of Sandwich">
+                🥪 COIN OF SANDWICH
+              </div>
+              <div id="hud-sandwich-bearer" class="sandwich-bearer-badge hidden">
+                🥪 GOLDEN SANDWICH ACTIVE!
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div id="hud-team-purse">
+                <span class="purse-icon">💰</span>
+                <span id="hud-purse-amount">0</span>
+              </div>
+              <button id="btn-hud-pause" class="icon-button" tabindex="-1" style="width: 32px; height: 32px; padding: 0; font-size: 14px;" title="Pause Quest (Esc / P / Start)" aria-label="Pause Quest">⏸️</button>
+            </div>
+          </div>
+
+          <!-- Player Cards Docked at Top -->
+          <div id="hud-player-cards">
+          <!-- P1 -->
+          <div id="p1-hud-card" class="knight-card p1-theme">
+            <div class="card-header">
+              <span class="player-num">P1</span>
+              <span class="knight-title" id="p1-knight-title">SIR TECTUS</span>
+              <span class="status-badge" id="p1-status">ALIVE</span>
+            </div>
+            <div class="card-body">
+              <div class="hearts-row" id="p1-hearts">❤️❤️❤️</div>
+              <div class="stats-row">
+                <span class="ammo-indicator" id="p1-ammo">🏹 3/3</span>
+                <span class="ability-indicator" id="p1-ability">🛡️ SHIELD READY</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- P2 -->
+          <div id="p2-hud-card" class="knight-card p2-theme hidden">
+            <div class="card-header">
+              <span class="player-num">P2</span>
+              <span class="knight-title" id="p2-knight-title">SIR BARETI</span>
+              <span class="status-badge" id="p2-status">ALIVE</span>
+            </div>
+            <div class="card-body">
+              <div class="hearts-row" id="p2-hearts">❤️❤️❤️</div>
+              <div class="stats-row">
+                <span class="ammo-indicator" id="p2-ammo">🏹 3/3</span>
+                <span class="ability-indicator" id="p2-ability">🔥 FIRE READY</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- P3 -->
+          <div id="p3-hud-card" class="knight-card p3-theme hidden">
+            <div class="card-header">
+              <span class="player-num">P3</span>
+              <span class="knight-title" id="p3-knight-title">SIR FLUCTUS</span>
+              <span class="status-badge" id="p3-status">ALIVE</span>
+            </div>
+            <div class="card-body">
+              <div class="hearts-row" id="p3-hearts">❤️❤️❤️</div>
+              <div class="stats-row">
+                <span class="ammo-indicator" id="p3-ammo">🏹 3/3</span>
+                <span class="ability-indicator" id="p3-ability">🌊 SURF READY</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- P4 -->
+          <div id="p4-hud-card" class="knight-card p4-theme hidden">
+            <div class="card-header">
+              <span class="player-num">P4</span>
+              <span class="knight-title" id="p4-knight-title">SIR MORGANI</span>
+              <span class="status-badge" id="p4-status">ALIVE</span>
+            </div>
+            <div class="card-body">
+              <div class="hearts-row" id="p4-hearts">❤️❤️❤️</div>
+              <div class="stats-row">
+                <span class="ammo-indicator" id="p4-ammo">🏹 3/3</span>
+                <span class="ability-indicator" id="p4-ability">🗡️ SWORD READY</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+        <!-- Notification Banner / Toast -->
+        <div id="hud-toast" class="hud-toast hidden">
+          <span id="hud-toast-text">12 COINS COLLECTED! THE GOLDEN GATE IS UNSEALED!</span>
+        </div>
+      </div>
+
+      <!-- UI Menu Container (Title, Lobby, Portals, Campfire, Victory) -->
+      <div id="menu-overlay" class="ui-layer">
+        <!-- Rendered dynamically by UIManager -->
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>
