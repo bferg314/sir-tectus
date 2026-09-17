@@ -4,6 +4,7 @@ import { Camera } from '../core/Camera';
 export class WorldRenderer {
   private animTimer: number = 0;
   private damageFlashTimer: number = 0;
+  public isLowHealth: boolean = false;
 
   public update(dt: number): void {
     this.animTimer += dt;
@@ -526,6 +527,16 @@ export class WorldRenderer {
     ctx.save();
     const t = this.animTimer;
 
+    // 1. Ambient Occlusion Drop Shadows under floating interior platforms
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.32)';
+    for (let i = 0; i < level.platforms.length; i++) {
+      const p = level.platforms[i];
+      if (p.isCrumbled) continue;
+      if (p.y > 60 && p.y < level.height - 80) {
+        ctx.fillRect(p.x + 6, p.y + p.h, p.w - 6, 8);
+      }
+    }
+
     for (let i = 0; i < level.platforms.length; i++) {
       const p = level.platforms[i];
 
@@ -657,6 +668,16 @@ export class WorldRenderer {
     for (let gx = p.x + 8; gx < p.x + p.w - 8; gx += 16) {
       ctx.fillRect(gx, p.y - 3, 3, 3);
     }
+    // Glowing bioluminescent shelf mushrooms on platform edges
+    ctx.fillStyle = '#10b981';
+    ctx.beginPath();
+    ctx.ellipse(p.x - 2, p.y + 10, 4.5, 2.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#6ee7b7';
+    ctx.beginPath();
+    ctx.arc(p.x - 2, p.y + 9.5, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
     // Dangling leafy vines hanging below
     ctx.fillStyle = '#1b4332';
     for (let vx = p.x + 20; vx < p.x + p.w - 20; vx += 45) {
@@ -765,6 +786,25 @@ export class WorldRenderer {
     }
     ctx.restore();
 
+    // Decorative rotating brass cogs on platform corners
+    ctx.save();
+    ctx.translate(p.x + 12, p.y + p.h * 0.5);
+    ctx.rotate(t * 1.6 + p.x);
+    ctx.fillStyle = '#b45309';
+    ctx.beginPath();
+    ctx.arc(0, 0, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#f59e0b';
+    for (let gi = 0; gi < 4; gi++) {
+      ctx.fillRect(-1, -6, 2, 12);
+      ctx.fillRect(-6, -1, 12, 2);
+    }
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.arc(0, 0, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
     // Rivet bolts along edges
     ctx.fillStyle = '#ffb703';
     ctx.fillRect(p.x + 4, p.y + p.h - 6, 3, 3);
@@ -786,6 +826,15 @@ export class WorldRenderer {
     ctx.lineTo(p.x + 80, p.y + p.h - 4);
     ctx.stroke();
     ctx.globalAlpha = 1.0;
+
+    // Dripping molten magma droplets falling into the deep
+    ctx.fillStyle = '#ff5400';
+    for (let mx = p.x + 30; mx < p.x + p.w - 30; mx += 70) {
+      const dropProgress = ((t * 45 + mx * 3) % 40);
+      ctx.beginPath();
+      ctx.arc(mx, p.y + p.h + dropProgress, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     ctx.strokeStyle = '#6d211b';
     ctx.lineWidth = 2;
@@ -1440,6 +1489,18 @@ export class WorldRenderer {
       flashGrad.addColorStop(0, `rgba(239, 71, 111, ${flashIntensity * 0.3})`);
       flashGrad.addColorStop(1, `rgba(239, 71, 111, ${flashIntensity})`);
       ctx.fillStyle = flashGrad;
+      ctx.fillRect(cx - vw * 0.5, cy - vh * 0.5, vw, vh);
+    }
+
+    // Low-health pulsing danger vignette when at 1 HP
+    if (this.isLowHealth) {
+      const pulse = Math.sin(this.animTimer * 5) * 0.5 + 0.5;
+      const pulseAlpha = 0.22 * pulse;
+      const dangerGrad = ctx.createRadialGradient(cx, cy, maxDim * 0.35, cx, cy, maxDim);
+      dangerGrad.addColorStop(0, 'rgba(239, 71, 111, 0)');
+      dangerGrad.addColorStop(0.7, `rgba(239, 71, 111, ${pulseAlpha * 0.5})`);
+      dangerGrad.addColorStop(1, `rgba(239, 71, 111, ${pulseAlpha})`);
+      ctx.fillStyle = dangerGrad;
       ctx.fillRect(cx - vw * 0.5, cy - vh * 0.5, vw, vh);
     }
     ctx.restore();

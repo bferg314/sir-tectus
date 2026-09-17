@@ -13,6 +13,11 @@ export class HUD {
   private toastEl: HTMLElement | null = null;
   private toastTextEl: HTMLElement | null = null;
   private toastTimeout: number = 0;
+  private splashCardEl: HTMLElement | null = null;
+  private splashStageEl: HTMLElement | null = null;
+  private splashNameEl: HTMLElement | null = null;
+  private splashDescEl: HTMLElement | null = null;
+  private splashTimeout: number = 0;
 
   constructor() {
     this.hudLayer = document.getElementById('hud-layer');
@@ -25,6 +30,10 @@ export class HUD {
     this.sandwichBearerEl = document.getElementById('hud-sandwich-bearer');
     this.toastEl = document.getElementById('hud-toast');
     this.toastTextEl = document.getElementById('hud-toast-text');
+    this.splashCardEl = document.getElementById('biome-splash-card');
+    this.splashStageEl = document.getElementById('biome-splash-stage');
+    this.splashNameEl = document.getElementById('biome-splash-name');
+    this.splashDescEl = document.getElementById('biome-splash-desc');
   }
 
   public show(): void {
@@ -117,6 +126,13 @@ export class HUD {
           heartsStr += h < p.health ? '❤️' : '🖤';
         }
         heartsEl.textContent = heartsStr;
+
+        // Pulse red warning when at critical 1 HP
+        if (p.isAlive && !p.isInBubble && p.health === 1) {
+          heartsEl.classList.add('danger-heartbeat');
+        } else {
+          heartsEl.classList.remove('danger-heartbeat');
+        }
       }
 
       // Ammo
@@ -141,6 +157,38 @@ export class HUD {
         }
       }
     }
+  }
+
+  public showBiomeSplash(stageNum: number, biomeName: string, tier: string, description?: string): void {
+    if (!this.splashCardEl) return;
+    if (this.splashTimeout) clearTimeout(this.splashTimeout);
+
+    if (this.splashStageEl) {
+      this.splashStageEl.textContent = stageNum === 5
+        ? 'THE SACRED SANCTUARY • FINAL MAP'
+        : `MAP ${stageNum} OF 5 • ${tier.toUpperCase()} TIER`;
+    }
+    if (this.splashNameEl) {
+      this.splashNameEl.textContent = biomeName.toUpperCase();
+    }
+    if (this.splashDescEl && description) {
+      this.splashDescEl.textContent = description;
+    }
+
+    this.splashCardEl.classList.remove('hidden', 'splash-fadeout');
+    this.splashCardEl.classList.add('splash-active');
+
+    this.splashTimeout = window.setTimeout(() => {
+      if (this.splashCardEl) {
+        this.splashCardEl.classList.add('splash-fadeout');
+        setTimeout(() => {
+          if (this.splashCardEl) {
+            this.splashCardEl.classList.add('hidden');
+            this.splashCardEl.classList.remove('splash-active', 'splash-fadeout');
+          }
+        }, 500);
+      }
+    }, 2800);
   }
 
   public showToast(text: string, durationMs: number = 3000): void {

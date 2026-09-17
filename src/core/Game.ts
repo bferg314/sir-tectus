@@ -241,6 +241,12 @@ export class Game {
     (document.activeElement as HTMLElement)?.blur();
     this.hud.show();
     this.hud.update(this.runManager, this.players);
+    this.hud.showBiomeSplash(
+      this.runManager.currentStage,
+      this.runManager.currentBiome.name,
+      this.runManager.currentBiome.tier,
+      this.runManager.currentBiome.description
+    );
   }
 
   private update(dt: number): void {
@@ -295,9 +301,30 @@ export class Game {
       p.updateBase(dt, input, this.currentLevel.platforms, this.projectiles, this.players, purseWrapper);
       p.performAbility(dt, input, this.projectiles);
 
+      // Footstep dust & jumping particle effects
+      if (p.isGrounded && Math.abs(p.vx) > 35 && p.footstepTimer > 0.16) {
+        p.footstepTimer = 0;
+        this.particles.emitFootstepDust(p.x, p.y, p.facingLeft);
+      }
+      if (p.justJumped) {
+        this.particles.emitFootstepDust(p.x, p.y, p.facingLeft);
+        p.justJumped = false;
+      }
+      if (p.justDoubleJumped) {
+        this.particles.emitJumpAirRing(p.x, p.y, p.color);
+        p.justDoubleJumped = false;
+      }
+      if (p.justLandedHard) {
+        this.particles.emitHardLandingBurst(p.x, p.y);
+        p.justLandedHard = false;
+      }
+
       // Sandwich carry sync
       if (this.sandwich && this.sandwich.carrierIndex === p.index) {
         p.isCarryingSandwich = true;
+        if (Math.random() < 0.35) {
+          this.particles.emitSunbeamAura(p.x, p.y - 20);
+        }
         if (input.tossPressed) {
           this.sandwich.toss(p.facingLeft);
           p.isCarryingSandwich = false;
@@ -343,7 +370,7 @@ export class Game {
                 this.sound.playSwordSwing(1.3);
                 this.sound.playEnemyDamage();
                 this.camera.addTrauma(killed ? 0.35 : 0.2);
-                this.particles.emitSlashSparks(e.x, e.y - 18, p.facingLeft);
+                this.particles.emitHitImpact(e.x, e.y - 18, p.facingLeft, p.color);
                 this.particles.emitCombatText(e.x, e.y - 32, killed ? 'SLAY!' : 'HIT! -1', killed ? '#ef476f' : '#ffd166', 15);
 
                 // Down-thrust Pogo Jump Bounce!
@@ -351,13 +378,14 @@ export class Game {
                   p.vy = e.type === 'spore_shroom' ? -720 : -560;
                   p.jumpsRemaining = 1;
                   this.sound.playPogoBounce();
-                  this.particles.emitRing(p.x, p.y, '#2ec4b6', 36);
+                  this.particles.emitPogoShockwave(p.x, p.y + 10, p.color);
                   this.particles.emitCombatText(p.x, p.y - 20, e.type === 'spore_shroom' ? 'SUPER POGO!' : 'POGO!', '#2ec4b6', 16);
                 }
 
                 // Dropped loot on kill
                 if (killed) {
                   this.sound.playEnemyDeath();
+                  this.particles.emitEnemyShatter(e.x, e.y - 18, e.type, 7);
                   this.particles.emitDeathPoof(e.x, e.y - 18, '#ef476f');
                   if (Math.random() < 0.65) {
                     this.coins.push(new Coin(e.x, e.y - 20, 'standard'));
@@ -441,6 +469,7 @@ export class Game {
             this.particles.emitCombatText(e.x, e.y - 30, 'SHIELD BASH!', '#ffd166', 14);
             if (killed) {
               this.sound.playEnemyDeath();
+              this.particles.emitEnemyShatter(e.x, e.y - 18, e.type, 7);
               this.particles.emitDeathPoof(e.x, e.y - 18, '#ffd166');
             }
           }
@@ -458,6 +487,7 @@ export class Game {
             this.particles.emitCombatText(e.x, e.y - 30, 'SURF RAM!', '#2ec4b6', 14);
             if (killed) {
               this.sound.playEnemyDeath();
+              this.particles.emitEnemyShatter(e.x, e.y - 18, e.type, 7);
               this.particles.emitDeathPoof(e.x, e.y - 18, '#2ec4b6');
             }
           }
@@ -678,6 +708,7 @@ export class Game {
               // Drop loot on kill
               if (killed) {
                 this.sound.playEnemyDeath();
+                this.particles.emitEnemyShatter(e.x, e.y - 18, e.type, 7);
                 this.particles.emitDeathPoof(e.x, e.y - 18, '#ffd166');
                 if (Math.random() < 0.65) {
                   this.coins.push(new Coin(e.x, e.y - 20, 'standard'));
@@ -1263,6 +1294,7 @@ export class Game {
       this.camera.applyTransform(this.ctx);
 
       // World, Props, Platforms & Hazards
+      this.worldRenderer.isLowHealth = this.players.some(p => p.isAlive && !p.isInBubble && p.health <= 1);
       this.worldRenderer.render(this.ctx, this.currentLevel, this.camera);
 
       // Coins
