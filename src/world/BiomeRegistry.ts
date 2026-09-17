@@ -16,7 +16,8 @@ export const BIOMES: Record<string, BiomeConfig> = {
     platformBorder: '#2d6a4f',
     material: 'wood',
     ambientParticle: 'leaves',
-    lightColor: '#74c69d'
+    lightColor: '#74c69d',
+    uniqueEnemy: 'spore_shroom'
   },
   'royal-courtyard': {
     id: 'royal-courtyard',
@@ -30,7 +31,8 @@ export const BIOMES: Record<string, BiomeConfig> = {
     platformBorder: '#4a628a',
     material: 'stone',
     ambientParticle: 'sparks',
-    lightColor: '#ffd166'
+    lightColor: '#ffd166',
+    uniqueEnemy: 'royal_guard'
   },
   'sunlit-aqueducts': {
     id: 'sunlit-aqueducts',
@@ -44,7 +46,8 @@ export const BIOMES: Record<string, BiomeConfig> = {
     platformBorder: '#2e6f95',
     material: 'ancient',
     ambientParticle: 'bubbles',
-    lightColor: '#4cc9f0'
+    lightColor: '#4cc9f0',
+    uniqueEnemy: 'tide_lurker'
   },
   'whispering-grottos': {
     id: 'whispering-grottos',
@@ -58,7 +61,8 @@ export const BIOMES: Record<string, BiomeConfig> = {
     platformBorder: '#533c85',
     material: 'crystal',
     ambientParticle: 'crystals',
-    lightColor: '#b5179e'
+    lightColor: '#b5179e',
+    uniqueEnemy: 'crystal_crawler'
   },
 
   // ==========================================
@@ -76,7 +80,8 @@ export const BIOMES: Record<string, BiomeConfig> = {
     platformBorder: '#7d562b',
     material: 'tech',
     ambientParticle: 'steam',
-    lightColor: '#ffb703'
+    lightColor: '#ffb703',
+    uniqueEnemy: 'steam_automaton'
   },
   'molten-caverns': {
     id: 'molten-caverns',
@@ -90,7 +95,8 @@ export const BIOMES: Record<string, BiomeConfig> = {
     platformBorder: '#6d211b',
     material: 'basalt',
     ambientParticle: 'embers',
-    lightColor: '#fb5607'
+    lightColor: '#fb5607',
+    uniqueEnemy: 'magma_brute'
   },
   'frostpeak-summit': {
     id: 'frostpeak-summit',
@@ -104,7 +110,8 @@ export const BIOMES: Record<string, BiomeConfig> = {
     platformBorder: '#3a72a8',
     material: 'ice',
     ambientParticle: 'snow',
-    lightColor: '#a2d2ff'
+    lightColor: '#a2d2ff',
+    uniqueEnemy: 'frost_yeti'
   },
   'sunken-catacombs': {
     id: 'sunken-catacombs',
@@ -118,7 +125,8 @@ export const BIOMES: Record<string, BiomeConfig> = {
     platformBorder: '#2e6366',
     material: 'ancient',
     ambientParticle: 'bubbles',
-    lightColor: '#2ec4b6'
+    lightColor: '#2ec4b6',
+    uniqueEnemy: 'drowned_revenant'
   },
 
   // ==========================================
@@ -137,7 +145,8 @@ export const BIOMES: Record<string, BiomeConfig> = {
     material: 'stone',
     ambientParticle: 'sparks',
     lightColor: '#ffd166',
-    gravityMultiplier: 0.88
+    gravityMultiplier: 0.88,
+    uniqueEnemy: 'aether_valkyrie'
   },
   'astral-void': {
     id: 'astral-void',
@@ -152,7 +161,8 @@ export const BIOMES: Record<string, BiomeConfig> = {
     material: 'crystal',
     ambientParticle: 'void',
     lightColor: '#b5179e',
-    gravityMultiplier: 0.82
+    gravityMultiplier: 0.82,
+    uniqueEnemy: 'void_weaver'
   },
   'infernal-core': {
     id: 'infernal-core',
@@ -166,7 +176,8 @@ export const BIOMES: Record<string, BiomeConfig> = {
     platformBorder: '#7a1a0e',
     material: 'basalt',
     ambientParticle: 'embers',
-    lightColor: '#ff0054'
+    lightColor: '#ff0054',
+    uniqueEnemy: 'infernal_demon'
   },
   'cursed-necropolis': {
     id: 'cursed-necropolis',
@@ -180,7 +191,8 @@ export const BIOMES: Record<string, BiomeConfig> = {
     platformBorder: '#265945',
     material: 'ancient',
     ambientParticle: 'void',
-    lightColor: '#06d6a0'
+    lightColor: '#06d6a0',
+    uniqueEnemy: 'death_knight'
   },
 
   // ==========================================

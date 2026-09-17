@@ -274,12 +274,19 @@ export class DungeonGenerator {
     const widthScale = tier === 'hard' ? 0.62 : (tier === 'medium' ? 0.82 : 1.0);
     const scaleW = (baseW: number) => Math.max(110, Math.round(baseW * widthScale));
 
-    // Dynamic enemy selector based on tier
+    // Dynamic enemy selector based on tier and biome's unique enemy
     const pickEnemy = (preferRanged: boolean = false): EnemyType => {
+      // 40% chance to spawn the biome's unique foe if ground-compatible
+      if (biome.uniqueEnemy && Math.random() < 0.42) {
+        if (biome.uniqueEnemy !== 'aether_valkyrie' && biome.uniqueEnemy !== 'void_weaver') {
+          return biome.uniqueEnemy as EnemyType;
+        }
+      }
+
       if (tier === 'hard') {
         const r = Math.random();
         if (r < 0.35) return 'berserker';
-        if (r < 0.60) return 'wraith';
+        if (r < 0.60) return (biome.uniqueEnemy === 'aether_valkyrie' || biome.uniqueEnemy === 'void_weaver') ? (biome.uniqueEnemy as EnemyType) : 'wraith';
         if (r < 0.80) return 'pyromancer';
         return 'vanguard';
       } else if (tier === 'medium') {
@@ -554,7 +561,10 @@ export class DungeonGenerator {
       coinSpawns.push({ x: s5.x + s5.w * 0.5, y: s5.y - 28 });
       coinSpawns.push({ x: s2.x + s2.w * 0.5, y: s2.y - 28 });
       enemySpawns.push({ x: s3.x + 50, y: s3.y - 30, type: pickEnemy() });
-      enemySpawns.push({ x: rx + rw * 0.5, y: ry + 140, type: tier === 'hard' ? 'wraith' : (tier === 'medium' ? 'floater' : 'floater') });
+      const aerialType: EnemyType = (biome.uniqueEnemy === 'aether_valkyrie' || biome.uniqueEnemy === 'void_weaver')
+        ? (biome.uniqueEnemy as EnemyType)
+        : (tier === 'hard' ? 'wraith' : 'floater');
+      enemySpawns.push({ x: rx + rw * 0.5, y: ry + 140, type: aerialType });
     } else {
       // Arena Coliseum & Balcony Halls
       const lowW = scaleW(230);
@@ -593,7 +603,10 @@ export class DungeonGenerator {
       enemySpawns.push({ x: lowR.x + 50, y: lowR.y - 30, type: pickEnemy(true) });
       enemySpawns.push({ x: lowL.x + 50, y: lowL.y - 30, type: pickEnemy() });
       if (tier === 'hard') {
-        enemySpawns.push({ x: dais.x + 40, y: dais.y - 30, type: 'berserker' });
+        const hardBossFoe: EnemyType = (biome.uniqueEnemy && biome.uniqueEnemy !== 'aether_valkyrie' && biome.uniqueEnemy !== 'void_weaver')
+          ? (biome.uniqueEnemy as EnemyType)
+          : 'berserker';
+        enemySpawns.push({ x: dais.x + 40, y: dais.y - 30, type: hardBossFoe });
       }
 
       props.push({

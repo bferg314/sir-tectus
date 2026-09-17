@@ -60,22 +60,22 @@ Each run spans **5 procedurally generated stages**. To open the gate to the next
 The world features 12 procedurally generated biomes across three difficulty tiers, each with bespoke atmospheric lighting, particle weather systems, custom platforms, and background parallax:
 
 ### 🟢 Easy Biomes (Tier 1)
-- **Crypt of the Forgotten**: Ancient mossy flagstones, flickering torch sconces, and floating dust motes.
-- **Verdant Meadow**: Sunny forest grottos, overgrown flowerbeds, floating pollen spores, and gentle platforms.
-- **Sunken Grotto**: Luminescent blue sea caves, rising air bubbles, and teal algae ledges.
-- **Whispering Woods**: Ancient autumnal groves, drifting amber leaves, and soft earthen tree roots.
+- **Verdant Canopy**: Enchanted woods with bouncy mushrooms, lush foliage, and gentle rolling branches.
+- **Royal Courtyard**: Grand stone battlements adorned with royal heraldry, glowing torches, and royal banners.
+- **Sunlit Aqueducts**: Pristine ancient channels with crystal-blue waterways, shallow pools, and rising bubbles.
+- **Whispering Grottos**: Softly luminescent subterranean caves with singing crystal formations.
 
 ### 🟡 Medium Biomes (Tier 2)
-- **Clockwork Foundry**: Industrial brass gears, steam vents, conveyor belts, and iron grating.
-- **Fungal Cavern**: Bioluminescent violet mushrooms, glowing spores, and bouncing toadstool caps.
-- **Overgrown Bastion**: Crumbled castle ramparts overrun by thorny vines, crumbling brickwork, and ivy.
-- **Cursed Marsh**: Murky swamp waters, poison-mist particles, and unstable bog foundations.
+- **Clockwork Foundry**: Industrial maze of turning brass gears, swift conveyor belts, and roaring steam vents.
+- **Molten Caverns**: Hazardous basalt crags suspended over churning pools of fiery magma and boiling heat.
+- **Frostpeak Summit**: Slick icy ridges, sharp stalactites, and biting mountain snowstorms.
+- **Sunken Catacombs**: Flooded tomb passages haunted by ancient spirits and crumbling submerged arches.
 
 ### 🔴 Hard Biomes (Tier 3)
-- **Molten Forge**: Blazing lava pools, raining magma embers, volcanic basalt rock, and extreme heat.
-- **Abyssal Core**: Void-touched obsidian spires, purple rifts, hovering abyss particles, and chasm leaps.
-- **Glacial Spire**: Slippery ice sheets, biting snowfall blizzards, and sheer frozen stalactites.
-- **Dread Citadel**: Gothic black marble architecture, blood-red moonlit arches, and swinging pendulum traps.
+- **Celestial Spires**: Low-gravity sky sanctuaries floating above the clouds with roaring wind updrafts.
+- **Astral Void**: Zero-friction cosmic pathways and unstable spatial rifts beyond reality.
+- **Infernal Core**: Intense searing heat waves, explosive volcanic bombs, and rising lava tides.
+- **Cursed Necropolis**: Ghostly apparition mists and crumbling bridges of brittle ancient bone.
 
 ---
 
@@ -86,11 +86,38 @@ The world features 12 procedurally generated biomes across three difficulty tier
 - **Archer**: Ranged marksman that tracks knight positions and fires parabolic arrows from elevated perches.
 - **Floater**: Hovering ethereal squid that bobs through the air and charges when knights draw near.
 
-### Specialized Medium & Hard Foes
+### Specialized Difficulty Foes
 - **Vanguard** *(Medium+)*: Heavy tower-shield knight. **Blocks all frontal sword slashes, arrows, and boomerang strikes**. Knights must flank from behind or down-thrust from above. Unleashes a heavy shield bash lunge.
 - **Pyromancer** *(Medium+)*: Arcane fire cultist wielding a magma staff. Lobs arcing **Firebombs** that detonate on impact. Emergency-teleports away in a cloud of brimstone when rushed in close quarters.
 - **Berserker** *(Hard)*: Dual-cleaver executioner that charges at high speed and unleashes a lethal 360° whirlwind strike. Upon reaching $\le 2$ HP, triggers **Blood Rage** ($+35\%$ speed and glowing red rage trails).
 - **Wraith** *(Hard)*: Ghostly phantom that phases through solid terrain and platform walls. Fires homing **Void Skulls** that seek out knights (skulls can be parried and destroyed with any sword slash).
+
+### 🌟 Unique Biome Foes (12 Champions)
+Every single biome features its own signature foe with bespoke Canvas 2D artwork, AI movement patterns, tailored health pools, and unique projectile attacks:
+
+#### 🟢 Easy Biome Champions (Tier 1)
+| Foe | Biome | HP | Mechanics & Abilities |
+| :--- | :--- | :--- | :--- |
+| **Spore Shroom** | Verdant Canopy | 2 | Hopping fungal creature with a red spotted cap. Releases floating drifting spore clouds. **Bonus**: Down-thrusting onto a Spore Shroom triggers a high-flying *"SUPER POGO!"* jump! |
+| **Royal Guard** | Royal Courtyard | 3 | Disciplined garrison sentry in gleaming steel plate with gold trim and crested plumage. Performs telegraphed halberd lunges with extended horizontal reach. |
+| **Tide Lurker** | Sunlit Aqueducts | 2 | Amphibious blue crustacean predator that scurries across platforms and spits parabolic pressurized water orbs. |
+| **Crystal Crawler** | Whispering Grottos | 3 | Gem-carapace beetle with **50% knockback resistance**. Periodically anchors itself to detonate an explosive radial burst of 3 sharp purple crystal shards. |
+
+#### 🟡 Medium Biome Champions (Tier 2)
+| Foe | Biome | HP | Mechanics & Abilities |
+| :--- | :--- | :--- | :--- |
+| **Steam Automaton** | Clockwork Foundry | 4 | Heavy brass robot with a whirring circular saw. Revs up for high-velocity buzzsaw charges and vents blinding scalding steam bursts from its chimney exhaust. |
+| **Magma Brute** | Molten Caverns | 5 | Obsidian golem coursing with volcanic magma veins. Executes violent headbutt charges and heaves arcing molten magma blobs that splash on impact. |
+| **Frost Yeti** | Frostpeak Summit | 4 | Horned snow beast that leaps between ledges, slams the ground with shockwaves, and breathes piercing icy frost shards across long sightlines. |
+| **Drowned Revenant** | Sunken Catacombs | 4 | Spectral barnacle-encrusted sailor wielding a rusty ship anchor. Delivers wide-cleaving anchor swings and conjures wavy necrotic dread souls. |
+
+#### 🔴 Hard Biome Champions (Tier 3)
+| Foe | Biome | HP | Mechanics & Abilities |
+| :--- | :--- | :--- | :--- |
+| **Aether Valkyrie** | Celestial Spires | 5 | Winged sky warrior floating gracefully under low gravity. Glides effortlessly across sky chasms and casts high-speed celestial sun spears. |
+| **Void Weaver** | Astral Void | 4 | Zero-gravity cosmic horror crowned with starry horns. Emits drifting dark void singularities and **phases/teleports away** when struck in melee. |
+| **Infernal Demon** | Infernal Core | 6 | Winged volcanic devil with curved obsidian horns. Leaps skyward to crash down with seismic force, launching ground-running hellfire waves across platform surfaces. |
+| **Death Knight** | Cursed Necropolis | 6 | Armored bone juggernaut with **50% knockback resistance** and glowing green eyes. Wields a runic broadsword and channels a necrotic soul vortex to reel distant knights into melee range. |
 
 ### The Secret Ancient One: Lord Crustifer
 - Awakening deep in the Abyss if the true path is taken, **Lord Crustifer** is a colossal multi-phase boss capable of raining down abyssal fire, summoning minions, and crushing knights who dare disturb the deepest sanctuary.

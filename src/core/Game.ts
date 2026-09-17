@@ -348,11 +348,11 @@ export class Game {
 
                 // Down-thrust Pogo Jump Bounce!
                 if (hitbox.isDownThrust) {
-                  p.vy = -560;
+                  p.vy = e.type === 'spore_shroom' ? -720 : -560;
                   p.jumpsRemaining = 1;
                   this.sound.playPogoBounce();
                   this.particles.emitRing(p.x, p.y, '#2ec4b6', 36);
-                  this.particles.emitCombatText(p.x, p.y - 20, 'POGO!', '#2ec4b6', 16);
+                  this.particles.emitCombatText(p.x, p.y - 20, e.type === 'spore_shroom' ? 'SUPER POGO!' : 'POGO!', '#2ec4b6', 16);
                 }
 
                 // Dropped loot on kill
@@ -725,10 +725,19 @@ export class Game {
                 return;
               }
 
-              // Firebomb explodes on impact
-              if (proj.type === 'firebomb') {
+              // Projectile impact explosion / burst effects
+              if (proj.type === 'firebomb' || proj.type === 'magma_blob') {
                 this.sound.playFireball();
                 this.particles.emitFire(proj.x, proj.y, 20);
+              } else if (proj.type === 'void_orb') {
+                this.sound.playEnemyDamage();
+                this.particles.emitSparks(proj.x, proj.y, '#c084fc', 18);
+              } else if (proj.type === 'spore_cloud') {
+                this.particles.emitSparks(proj.x, proj.y, '#74c69d', 12);
+              } else if (proj.type === 'steam_burst') {
+                this.particles.emitDeathPoof(proj.x, proj.y, '#e2e8f0');
+              } else if (proj.type === 'frost_shard') {
+                this.particles.emitSparks(proj.x, proj.y, '#38bdf8', 12);
               }
 
               const kbX = proj.vx >= 0 ? 180 : -180;
@@ -774,6 +783,16 @@ export class Game {
                   // Whirlwind cyclone push
                   kbX = (p.x >= e.x ? 1 : -1) * 270;
                   kbY = -210;
+                } else if (e.type === 'royal_guard') {
+                  kbX = (e.facingLeft ? -1 : 1) * 290;
+                  kbY = -220;
+                } else if (e.type === 'drowned_revenant') {
+                  kbX = (e.facingLeft ? -1 : 1) * 360;
+                  kbY = -280;
+                } else if (e.type === 'infernal_demon' || e.type === 'death_knight') {
+                  kbX = (e.facingLeft ? -1 : 1) * 380;
+                  kbY = -260;
+                  dmg = 2; // Hard tier heavy foes hit for 2 damage
                 }
 
                 this.damagePlayer(p, dmg, kbX, kbY);

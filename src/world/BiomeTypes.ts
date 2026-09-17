@@ -79,4 +79,5 @@ export interface BiomeConfig {
   ambientParticle: 'leaves' | 'sparks' | 'bubbles' | 'crystals' | 'steam' | 'embers' | 'snow' | 'void' | 'gold';
   lightColor: string;
   gravityMultiplier?: number;
+  uniqueEnemy?: string;
 }
