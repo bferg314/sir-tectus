@@ -374,7 +374,7 @@ export class UIManager {
           ${renderSlotsHtml()}
         </div>
 
-        <div class="menu-buttons" style="flex-direction: row; justify-content: center; gap: 16px; margin-top: 10px;">
+        <div class="menu-buttons lobby-buttons" style="flex-direction: row; justify-content: center; gap: 16px; margin-top: 10px;">
           <button id="btn-start-game" class="btn-primary">🚀 Embark on Quest</button>
           <button id="btn-back-title" class="btn-secondary">Back to Title</button>
         </div>
