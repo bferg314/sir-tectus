@@ -13,6 +13,26 @@ Play **solo with AI companion bots**, **up to 4-player local co-op**, or any com
 
 ---
 
+## 📸 Gameplay & Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/gameplay_verdant_canopy.png" alt="Verdant Canopy Gameplay" width="100%">
+</p>
+
+| Title Screen | Knight Selection Lobby |
+| :---: | :---: |
+| ![Title Screen](docs/screenshots/title_screen.png) | ![Knight Selection](docs/screenshots/knight_selection.png) |
+
+| Stage 3: Infernal Core | Realm Conquered: Branching Portals |
+| :---: | :---: |
+| ![Infernal Core](docs/screenshots/gameplay_infernal_core.png) | ![Branching Portals](docs/screenshots/branching_portals.png) |
+
+| The Campfire Sanctuary (Shop & Relics) | Options & Controls Guide |
+| :---: | :---: |
+| ![Campfire Sanctuary](docs/screenshots/campfire_sanctuary.png) | ![Options & Controls](docs/screenshots/options_controls.png) |
+
+---
+
 ## ⚔️ The Knights
 
 Every knight features distinct armor, a flowing signature cape, unique mobility, and a signature special ability. Any player can select any knight slot, and selections are remembered across runs and restarts.
@@ -310,6 +330,9 @@ npm run dist:mac
 # Package Linux binaries (.AppImage and .deb for x64)
 npm run dist:linux
 ```
+
+### 📦 Official Desktop Releases
+Pre-built native desktop binaries for Windows (`.exe` installer & portable), macOS (`.dmg` & `.zip` for Apple Silicon arm64 & Intel x64), and Linux (`.AppImage` & `.deb`) are available directly from [GitHub Releases](https://github.com/bferg314/sir-tectus/releases).
 
 ---
 

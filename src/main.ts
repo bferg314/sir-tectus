@@ -19,6 +19,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Initialize master Game orchestrator
   const game = new Game(canvas);
+  (window as any).BIOMES = BIOMES;
   if (new URLSearchParams(window.location.search).has('vault')) {
     game.ui.showBranchingPortals(
       [BIOMES['golden-sandwich-sanctuary']],
