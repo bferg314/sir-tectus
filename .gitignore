@@ -1,8 +1,11 @@
 node_modules
 dist
 dist-electron
+release
+scratch
 *.log
 .env
 .env.local
 .DS_Store
 Thumbs.db
+

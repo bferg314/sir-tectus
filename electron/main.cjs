@@ -1,6 +1,7 @@
-const { app, BrowserWindow, Menu, globalShortcut, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain } = require('electron');
 const path = require('path');
 
+// IPC handlers
 ipcMain.on('exit-game', () => {
   app.quit();
 });
@@ -28,12 +29,14 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      backgroundThrottling: false
+      backgroundThrottling: false // Keep 60 FPS running smoothly even if unfocused
     }
   });
 
+  // Remove default menu bar for an arcade / console feel
   Menu.setApplicationMenu(null);
 
+  // Check if running against a live Vite dev server
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
   if (devServerUrl) {
     mainWindow.loadURL(devServerUrl);
@@ -41,10 +44,17 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
-  // F11 Fullscreen shortcut
-  globalShortcut.register('F11', () => {
-    if (mainWindow) {
-      mainWindow.setFullScreen(!mainWindow.isFullScreen());
+  // Handle Fullscreen shortcuts
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    // F11 or Alt+Enter toggles fullscreen
+    if (input.type === 'keyDown') {
+      if (input.key === 'F11' || (input.key === 'Enter' && input.alt)) {
+        mainWindow.setFullScreen(!mainWindow.isFullScreen());
+        event.preventDefault();
+      } else if (input.key === 'Escape' && mainWindow.isFullScreen()) {
+        mainWindow.setFullScreen(false);
+        event.preventDefault();
+      }
     }
   });
 
@@ -53,18 +63,31 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
-  createWindow();
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+// Single instance lock
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
   });
-});
 
-app.on('will-quit', () => {
-  globalShortcut.unregisterAll();
-});
+  app.whenReady().then(() => {
+    createWindow();
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      }
+    });
+  });
+}
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
 });

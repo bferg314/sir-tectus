@@ -279,6 +279,41 @@ sir-tectus/
 
 ---
 
+## 🚀 Building & Running
+
+### Web Version
+```bash
+# Install dependencies
+npm install
+
+# Run local Vite dev server
+npm run dev
+
+# Build optimized web bundle
+npm run build
+
+# Preview production build locally
+npm run preview
+```
+
+### Desktop Application (Electron)
+```bash
+# Run desktop version locally in Electron (hot reloads Vite dist)
+npm run electron:dev
+
+# Package Windows binaries (.exe installer and portable x64)
+npm run dist:win
+
+# Package macOS binaries (.dmg and .zip for x64 & arm64)
+npm run dist:mac
+
+# Package Linux binaries (.AppImage and .deb for x64)
+npm run dist:linux
+```
+
+---
+
 ## 📜 License
 
 Created with ❤️ for **Sir Tectus and the Golden Sandwich**. All rights reserved.
+
