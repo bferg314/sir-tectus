@@ -163,3 +163,4 @@ if (!inpTallCliff.jumpPressed) {
 console.log('✓ PASS: Double jump is reserved for tall cliffs and does not spam on normal heights.\n');
 
 console.log('=== ALL BOT JUMP DIAL-BACK TESTS PASSED! ===');
+process.exit(0);

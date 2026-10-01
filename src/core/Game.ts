@@ -10,6 +10,8 @@ import { RunManager } from '../roguelike/RunManager';
 import { HUD } from '../ui/HUD';
 import { UIManager } from '../ui/UIManager';
 import { GamepadNavigator } from '../ui/GamepadNavigator';
+import { BotBrain } from './ai/BotBrain';
+import { PlayerInputState } from './InputManager';
 
 import { Player } from '../entities/Player';
 import { SirTectus } from '../entities/knights/SirTectus';
@@ -50,6 +52,7 @@ export class Game {
   public hud: HUD;
   public ui: UIManager;
   public gpNav: GamepadNavigator;
+  public botBrain: BotBrain = new BotBrain();
 
   public state: GameState = 'title';
   public currentLevel: DungeonLevel | null = null;
@@ -155,6 +158,7 @@ export class Game {
 
   public startRun(slots: { num: number; name: string; active: boolean; isCpu: boolean }[]): void {
     this.runManager.startNewRun();
+    this.botBrain.reset();
     this.players = [];
 
     slots.forEach((s, idx) => {
@@ -172,6 +176,7 @@ export class Game {
   }
 
   public loadLevel(): void {
+    this.botBrain.reset();
     const isMap5 = this.runManager.currentStage === 5;
     const allowSecrets = SaveManager.isTrueEndingUnlocked;
 
@@ -293,9 +298,9 @@ export class Game {
 
       let input = this.input.getPlayerInput(p.index);
 
-      // Simple AI bot companion logic if CPU
+      // Companion AI bot input via BotBrain
       if (p.isCpu) {
-        input = this.getBotInput(p);
+        input = this.botBrain.getBotInput(p, this, dt);
       }
 
       p.updateBase(dt, input, this.currentLevel.platforms, this.projectiles, this.players, purseWrapper);
@@ -921,6 +926,9 @@ export class Game {
     // 9. Camera update
     this.camera.update(dt, this.players);
     this.hud.update(this.runManager, this.players);
+
+    // 10. Off-screen player damage & penalty (lower straggler takes damage, higher player stays safe)
+    this.updateOffscreenPlayers(dt);
   }
 
   private handleExtractionAltarReach(): void {
@@ -1015,276 +1023,8 @@ export class Game {
     return true;
   }
 
-  private getBotInput(bot: Player) {
-    const input = {
-      moveX: 0,
-      moveY: 0,
-      jump: false,
-      jumpPressed: false,
-      attack: false,
-      attackPressed: false,
-      aimBow: false,
-      aimBowPressed: false,
-      shootArrow: false,
-      ability: false,
-      abilityPressed: false,
-      dash: false,
-      dashPressed: false,
-      dropThrough: false,
-      pausePressed: false,
-      tossPressed: false
-    };
-
-    if (!bot.isAlive || bot.isInBubble) return input;
-
-    // Track persistent bot navigation & jump timing states on instance
-    const botData = bot as any;
-    if (botData.botStuckTimer === undefined) botData.botStuckTimer = 0;
-    if (botData.botAbilityCooldown === undefined) botData.botAbilityCooldown = 0;
-    if (botData.jumpHoldTimer === undefined) botData.jumpHoldTimer = 0;
-    if (botData.airTime === undefined) botData.airTime = 0;
-    if (botData.doubleJumpDelay === undefined) botData.doubleJumpDelay = 0;
-    if (botData.jumpCooldown === undefined) botData.jumpCooldown = 0;
-    if (botData.groundedTimer === undefined) botData.groundedTimer = 0;
-    if (botData.bouncerCooldown === undefined) botData.bouncerCooldown = 0;
-
-    const dtEst = 0.016;
-    if (botData.botAbilityCooldown > 0) botData.botAbilityCooldown -= dtEst;
-    if (botData.jumpCooldown > 0) botData.jumpCooldown -= dtEst;
-    if (botData.doubleJumpDelay > 0) botData.doubleJumpDelay -= dtEst;
-    if (botData.bouncerCooldown > 0) botData.bouncerCooldown -= dtEst;
-
-    // Sustained jump hold: Keeps jump button held through the ascent for a long, slow, high arc!
-    if (botData.jumpHoldTimer > 0) {
-      botData.jumpHoldTimer -= dtEst;
-      input.jump = true;
-    }
-
-    // 1. EMERGENCY REVIVE PRIORITY: Check for any ally in a soul bubble
-    const bubbleAlly = this.players.find(p => p !== bot && p.isInBubble);
-
-    // Determine primary target: Bubble Ally (Emergency) or Living Leader
-    let targetX = bot.x;
-    let targetY = bot.y;
-    let isReviving = false;
-    let leader = this.players.find(p => !p.isCpu && p.isAlive && !p.isInBubble);
-    if (!leader) {
-      // If human is down or all humans are down, follow any living teammate
-      leader = this.players.find(p => p !== bot && p.isAlive && !p.isInBubble);
-    }
-
-    if (bubbleAlly) {
-      isReviving = true;
-      targetX = bubbleAlly.x;
-      targetY = bubbleAlly.y;
-    } else if (leader) {
-      // 2. TACTICAL SPACING: Give the player plenty of room!
-      // Keep a staggered flanking offset (90-120px) so the bot doesn't crowd or block vision
-      const flankSide = (bot.index % 2 === 0) ? -1 : 1;
-      const flankOffset = flankSide * (90 + (bot.index * 15));
-      targetX = leader.x + flankOffset;
-
-      // Track the leader's actual grounded platform height!
-      // When the leader hops/jumps in place, do NOT mirror their jump into the sky!
-      if (leader.isGrounded || botData.leaderGroundedY === undefined) {
-        botData.leaderGroundedY = leader.y;
-      }
-      targetY = botData.leaderGroundedY;
-    }
-
-    const dx = targetX - bot.x;
-    const dy = targetY - bot.y;
-
-    // 3. HORIZONTAL NAVIGATION (Smooth, Natural Companion Pacing - Never Rushing)
-    const distToTarget = Math.abs(dx);
-    if (distToTarget > 32) {
-      const dir = dx > 0 ? 1 : -1;
-      if (isReviving) {
-        // Emergency: Full speed to revive fallen ally
-        input.moveX = dir;
-      } else if (distToTarget > 220) {
-        // Far behind: Gentle brisk jog to catch up smoothly
-        input.moveX = dir * 0.85;
-      } else if (distToTarget > 90) {
-        // Normal companion pace
-        input.moveX = dir * 0.68;
-      } else {
-        // Close range: Relaxed companion stroll alongside player (smooth, no sudden sprinting)
-        input.moveX = dir * 0.52;
-      }
-    } else if (!isReviving && leader) {
-      // If player approaches too closely (<45px), gently step aside to yield space
-      const playerDist = Math.abs(leader.x - bot.x);
-      if (playerDist < 45) {
-        input.moveX = (bot.x > leader.x) ? 0.45 : -0.45;
-      }
-    }
-
-    // 4. VERTICAL CLIMBING & JUMP LOGIC (Poised, Purposeful, Long Slow Arcs - Never Bouncing)
-    if (bot.isGrounded) {
-      botData.airTime = 0;
-      botData.doubleJumpDelay = 0;
-      botData.groundedTimer += dtEst;
-
-      // Only jump if target platform is genuinely elevated (dy < -55; or dy < -35 for soul bubble revive)
-      const needsVerticalClimb = isReviving ? (dy < -35) : (dy < -55);
-
-      // Must be horizontally close enough to make meaningful progress toward the ledge
-      const inClimbRange = Math.abs(dx) < 180 || isReviving;
-
-      // Grounded settle delay: Bot must have both feet planted for at least 0.75s (0.25s for emergency revive)
-      // This prevents the bot from constantly bouncing upon landing!
-      const settledOnGround = botData.groundedTimer >= (isReviving ? 0.25 : 0.75);
-
-      if (needsVerticalClimb && inClimbRange && settledOnGround && botData.jumpCooldown <= 0) {
-        input.jump = true;
-        input.jumpPressed = true;
-        botData.jumpHoldTimer = 0.42; // Retain the long, slow, graceful rise that looks great!
-        botData.doubleJumpDelay = 0.42; // Apex delay before double jump is considered
-        botData.jumpCooldown = 1.2; // Dialed back: Generous rest cooldown so bot strolls naturally
-        botData.groundedTimer = 0;
-      }
-
-      // If near a bouncy launchpad, path onto it only when a massive vertical launch is genuinely required
-      if (this.currentLevel && dy < -80 && botData.bouncerCooldown <= 0) {
-        const nearBouncer = this.currentLevel.platforms.find(plat => 
-          plat.bouncy && Math.abs((plat.x + plat.w * 0.5) - bot.x) < 70 && Math.abs(plat.y - bot.y) < 40
-        );
-        if (nearBouncer) {
-          input.moveX = (nearBouncer.x + nearBouncer.w * 0.5) > bot.x ? 0.65 : -0.65;
-        }
-      }
-    } else {
-      // In air: reset ground timer and track airborne time
-      botData.groundedTimer = 0;
-      botData.airTime += dtEst;
-
-      // If launched by a bouncy launchpad, activate cooldown so bot doesn't steer back into a bounce trap
-      if (bot.vy < -550) {
-        botData.bouncerCooldown = 2.0;
-      }
-
-      // Double Jump logic: smooth, deliberate second jump ONLY when genuinely needed
-      // (High cliffs dy < -90, wide horizontal chasm gap, or emergency soul bubble rescue)
-      const needsHighDoubleJump = dy < -90 || (isReviving && dy < -50);
-      const needsChasmDoubleJump = Math.abs(dx) > 130 && dy < -30;
-
-      if (
-        bot.jumpsRemaining > 0 &&
-        botData.doubleJumpDelay <= 0 &&
-        botData.airTime >= 0.38 &&
-        bot.vy > -50 && bot.vy < 140 &&
-        (needsHighDoubleJump || needsChasmDoubleJump)
-      ) {
-        input.jump = true;
-        input.jumpPressed = true;
-        botData.jumpHoldTimer = 0.40; // Hold double jump for smooth apex extension
-        botData.doubleJumpDelay = 999; // Prevent multi-triggering
-      }
-    }
-
-    // Drop through one-way floors when target is significantly below
-    if (dy > 65) {
-      input.moveY = 1;
-      input.dropThrough = true;
-    }
-
-    // 5. ANTI-STUCK CLAMBERING: Detect horizontal blockage against step/ledge
-    if (Math.abs(input.moveX) > 0.1 && bot.isGrounded && Math.abs(bot.vx) < 16) {
-      botData.botStuckTimer += dtEst;
-      if (botData.botStuckTimer > 0.8 && botData.jumpCooldown <= 0 && botData.groundedTimer >= 0.6) {
-        input.jump = true;
-        input.jumpPressed = true;
-        botData.jumpHoldTimer = 0.38;
-        botData.jumpCooldown = 1.6; // generous cooldown so it doesn't repeatedly jump into a wall
-        botData.botStuckTimer = 0;
-        botData.groundedTimer = 0;
-      }
-    } else {
-      botData.botStuckTimer = 0;
-    }
-
-    // 6. REVIVE STRIKE: Slash soul bubble when in proximity
-    if (isReviving && bubbleAlly) {
-      const bubbleDist = Math.hypot(bubbleAlly.x - bot.x, bubbleAlly.y - (bot.y - 18));
-      if (bubbleDist < 75) {
-        input.attack = true;
-        input.attackPressed = true;
-      }
-    }
-
-    // 7. COMBAT & SELF DEFENSE
-    // Melee attack nearest living enemy within sword reach
-    const meleeEnemy = this.enemies.find(e => e.isAlive && Math.hypot(e.x - bot.x, e.y - bot.y) < 72);
-    if (meleeEnemy) {
-      if (!isReviving) {
-        input.moveX = meleeEnemy.x > bot.x ? 0.8 : -0.8;
-      }
-      input.attack = true;
-      input.attackPressed = true;
-
-      // Tactical flanking: If facing a Vanguard's tower shield, try to jump/dodge behind him
-      if (meleeEnemy.type === 'vanguard' && (meleeEnemy as any).isShieldGuarding) {
-        const vanguardFacesBot = meleeEnemy.facingLeft ? (bot.x < meleeEnemy.x) : (bot.x > meleeEnemy.x);
-        if (vanguardFacesBot) {
-          input.moveX = meleeEnemy.facingLeft ? 0.9 : -0.9;
-          if (bot.isGrounded && botData.jumpCooldown <= 0) {
-            input.jump = true;
-            input.jumpPressed = true;
-            botData.jumpHoldTimer = 0.38;
-          }
-        }
-      }
-    }
-
-    // Cast signature knight ability against distant enemies (80-220px)
-    if (!isReviving && botData.botAbilityCooldown <= 0) {
-      const rangedEnemy = this.enemies.find(e => e.isAlive && Math.hypot(e.x - bot.x, e.y - bot.y) >= 80 && Math.hypot(e.x - bot.x, e.y - bot.y) < 220);
-      if (rangedEnemy) {
-        input.moveX = rangedEnemy.x > bot.x ? 0.7 : -0.7;
-        input.ability = true;
-        input.abilityPressed = true;
-        botData.botAbilityCooldown = 2.4;
-      }
-    }
-
-    // 8. HAZARD EVASION: Scurry away from warning or active fire vents
-    if (this.currentLevel) {
-      const ventDanger = this.currentLevel.hazards.find(h =>
-        h.type === 'fire_vent' && (h.state === 'warning' || h.state === 'active') &&
-        bot.x >= h.x - 24 && bot.x <= h.x + h.w + 24 &&
-        Math.abs(bot.y - h.y) < 55
-      );
-      if (ventDanger) {
-        const escapeDir = bot.x > (ventDanger.x + ventDanger.w * 0.5) ? 1 : -1;
-        input.moveX = escapeDir;
-        if (bot.isGrounded && botData.jumpCooldown <= 0) {
-          input.jump = true;
-          input.jumpPressed = true;
-          botData.jumpHoldTimer = 0.35;
-          botData.jumpCooldown = 1.0;
-        }
-      }
-
-      // Evade swinging pendulum blade trap if nearby and low
-      const bladeDanger = this.currentLevel.hazards.find(h => {
-        if (h.type !== 'blade_trap') return false;
-        const anchorX = h.anchorX ?? (h.x + h.w * 0.5);
-        const anchorY = h.anchorY ?? (h.y - 120);
-        const len = h.length ?? 120;
-        const bladeX = anchorX + Math.sin(h.angle ?? 0) * len;
-        const bladeY = anchorY + Math.cos(h.angle ?? 0) * len;
-        return Math.hypot(bladeX - bot.x, bladeY - (bot.y - 20)) < 75;
-      });
-      if (bladeDanger) {
-        const anchorX = bladeDanger.anchorX ?? (bladeDanger.x + bladeDanger.w * 0.5);
-        const bladeX = anchorX + Math.sin(bladeDanger.angle ?? 0) * (bladeDanger.length ?? 120);
-        const escapeDir = bot.x < bladeX ? -1 : 1;
-        input.moveX = escapeDir;
-      }
-    }
-
-    return input;
+  public getBotInput(bot: Player, dt: number = 0.016): PlayerInputState {
+    return this.botBrain.getBotInput(bot, this, dt);
   }
 
   private render(): void {
@@ -1319,6 +1059,156 @@ export class Game {
       this.particles.render(this.ctx);
 
       this.camera.resetTransform(this.ctx);
+
+      // Render Off-screen Player Indicators in screen space
+      this.renderOffscreenIndicators(this.ctx);
     }
+  }
+
+  private updateOffscreenPlayers(dt: number): void {
+    if (!this.currentLevel) return;
+
+    // Only apply when multiple active players are in the game
+    const activePlayers = this.players.filter(p => p.isAlive && !p.isInBubble);
+    if (activePlayers.length <= 1) {
+      this.players.forEach(p => p.offscreenTimer = 0);
+      return;
+    }
+
+    // Find the highest active player (smallest Y coordinate in Canvas 2D)
+    let highestY = activePlayers[0].y;
+    for (let i = 1; i < activePlayers.length; i++) {
+      if (activePlayers[i].y < highestY) {
+        highestY = activePlayers[i].y;
+      }
+    }
+
+    // Camera viewport boundaries in world coordinates
+    const halfH = (this.camera.viewportHeight * 0.5) / this.camera.zoom;
+    const halfW = (this.camera.viewportWidth * 0.5) / this.camera.zoom;
+    const bottomY = this.camera.y + halfH;
+    const leftX = this.camera.x - halfW;
+    const rightX = this.camera.x + halfW;
+
+    for (let i = 0; i < activePlayers.length; i++) {
+      const p = activePlayers[i];
+
+      // A player is penalized ONLY IF they are lower than the leader (p.y > highestY + 80)
+      // AND they are off the bottom of the screen (or far off the sides while lower)
+      const isLowerThanLeader = p.y > highestY + 80;
+      const isBelowScreen = p.y > bottomY + 20;
+      const isOffSides = p.x < leftX - 45 || p.x > rightX + 45;
+
+      if (isLowerThanLeader && (isBelowScreen || isOffSides)) {
+        p.offscreenTimer += dt;
+
+        // Visual warning dust / sparks
+        if (Math.random() < 0.25) {
+          const warningX = Math.max(leftX + 40, Math.min(rightX - 40, p.x));
+          this.particles.emitCombatText(
+            warningX,
+            bottomY - 35,
+            '⚠️ OFF-SCREEN',
+            '#f87171',
+            13
+          );
+        }
+
+        // Damage cadence: 1.5s grace period, then 1 damage every 1.2 seconds
+        if (p.offscreenTimer >= 1.5) {
+          p.offscreenTimer = 0.3; // Reset timer so next tick is in 1.2s
+          const downed = this.damagePlayer(p, 1, 0, -220);
+
+          const alertX = Math.max(leftX + 40, Math.min(rightX - 40, p.x));
+          this.particles.emitCombatText(
+            alertX,
+            bottomY - 50,
+            '-1 ❤️ OFF-SCREEN',
+            '#ef476f',
+            16
+          );
+
+          if (downed) {
+            this.hud.showToast(`${p.name} FELL OFF-SCREEN! RESCUE THEIR BUBBLE!`, 3000);
+          }
+        }
+      } else {
+        p.offscreenTimer = 0;
+      }
+    }
+  }
+
+  private renderOffscreenIndicators(ctx: CanvasRenderingContext2D): void {
+    const activePlayers = this.players.filter(p => p.isAlive && !p.isInBubble);
+    if (activePlayers.length <= 1) return;
+
+    const vw = this.camera.viewportWidth;
+    const vh = this.camera.viewportHeight;
+
+    activePlayers.forEach(p => {
+      const screenPos = this.camera.worldToScreen(p.x, p.y - 20);
+
+      // Check if player position is outside viewport margins
+      const isOffscreen =
+        screenPos.x < 15 || screenPos.x > vw - 15 ||
+        screenPos.y < 15 || screenPos.y > vh - 15;
+
+      if (isOffscreen) {
+        // Clamp indicator position to screen edges with padding
+        const clampX = Math.max(36, Math.min(vw - 36, screenPos.x));
+        const clampY = Math.max(36, Math.min(vh - 36, screenPos.y));
+
+        ctx.save();
+        ctx.translate(clampX, clampY);
+
+        // Calculate angle pointing to actual offscreen player
+        const angle = Math.atan2(screenPos.y - clampY, screenPos.x - clampX);
+
+        // Danger pulsing glow if offscreen timer active
+        if (p.offscreenTimer > 0) {
+          const pulse = Math.sin(performance.now() * 0.01) * 0.3 + 0.7;
+          ctx.fillStyle = `rgba(239, 71, 111, ${pulse * 0.6})`;
+          ctx.beginPath();
+          ctx.arc(0, 0, 24, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Circular background badge with player color
+        ctx.fillStyle = '#1e293b';
+        ctx.strokeStyle = p.offscreenTimer > 0 ? '#ef476f' : p.color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, 16, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Direction pointer chevron
+        ctx.fillStyle = p.offscreenTimer > 0 ? '#ef476f' : p.color;
+        ctx.save();
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(22, 0);
+        ctx.lineTo(13, -7);
+        ctx.lineTo(13, 7);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        // Knight icon / initial inside badge
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(p.name.charAt(4) || 'K', 0, 1);
+
+        // Player Name above/below badge
+        ctx.fillStyle = p.color;
+        ctx.font = 'bold 10px sans-serif';
+        const nameOffsetY = clampY > vh - 50 ? -22 : 24;
+        ctx.fillText(p.name, 0, nameOffsetY);
+
+        ctx.restore();
+      }
+    });
   }
 }

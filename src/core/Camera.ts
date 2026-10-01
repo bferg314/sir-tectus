@@ -72,6 +72,16 @@ export class Camera {
       const zoomY = this.viewportHeight / spanY;
       // Allow zooming out to 0.65 for wide co-op exploration, up to 1.15 when close
       this.targetZoom = Math.min(1.15, Math.max(0.65, Math.min(zoomX, zoomY)));
+
+      // Protect the advancing higher player!
+      // In Canvas 2D, smaller Y is higher in the level.
+      // If the vertical spread between players exceeds the camera viewport, anchor the camera to the HIGHER player (minTargetY)
+      // so the higher player NEVER gets pushed off the top of the screen by a lower straggler.
+      const halfViewH = (this.viewportHeight * 0.5) / this.targetZoom;
+      const maxAllowedTargetY = minTargetY + halfViewH - 80;
+      if (this.targetY > maxAllowedTargetY) {
+        this.targetY = maxAllowedTargetY;
+      }
     }
 
     // Clamp targets to level boundary taking current zoom into account

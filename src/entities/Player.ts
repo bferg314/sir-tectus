@@ -57,6 +57,9 @@ export abstract class Player {
   // Carrying the Golden Sandwich
   public isCarryingSandwich: boolean = false;
 
+  // Off-screen Tracking
+  public offscreenTimer: number = 0;
+
   // Visuals & Animations
   public squashX: number = 1.0;
   public squashY: number = 1.0;
@@ -99,6 +102,7 @@ export abstract class Player {
     this.isDashing = false;
     this.dashCooldown = 0;
     this.isCarryingSandwich = false;
+    this.offscreenTimer = 0;
 
     this.capeNodes = [];
     for (let i = 0; i < 8; i++) {
