@@ -32,7 +32,8 @@ export class Coin {
       const dist = Math.hypot(dx, dy);
 
       if (dist < magnetRadius && dist > 1) {
-        const pullSpeed = (1 - dist / magnetRadius) * 220;
+        const speedFactor = magnetRadius > 100 ? 440 : 260;
+        const pullSpeed = Math.max(120, (1 - dist / magnetRadius) * speedFactor);
         this.x += (dx / dist) * pullSpeed * dt;
         this.baseY += (dy / dist) * pullSpeed * dt;
         break;

@@ -1,5 +1,7 @@
 import { RunManager } from '../roguelike/RunManager';
 import { Player } from '../entities/Player';
+import { RELIC_POOL } from '../roguelike/RelicRegistry';
+import { Boss } from '../entities/Boss';
 
 export class HUD {
   private hudLayer: HTMLElement | null = null;
@@ -10,6 +12,12 @@ export class HUD {
   private purseAmountEl: HTMLElement | null = null;
   private sandwichCoinEl: HTMLElement | null = null;
   private sandwichBearerEl: HTMLElement | null = null;
+  private relicsListEl: HTMLElement | null = null;
+  private coinRadarEl: HTMLElement | null = null;
+  private coinRadarTextEl: HTMLElement | null = null;
+  private bossBarContainerEl: HTMLElement | null = null;
+  private bossBarFillEl: HTMLElement | null = null;
+  private bossBarHpTextEl: HTMLElement | null = null;
   private toastEl: HTMLElement | null = null;
   private toastTextEl: HTMLElement | null = null;
   private toastTimeout: number = 0;
@@ -28,6 +36,12 @@ export class HUD {
     this.purseAmountEl = document.getElementById('hud-purse-amount');
     this.sandwichCoinEl = document.getElementById('hud-sandwich-coin');
     this.sandwichBearerEl = document.getElementById('hud-sandwich-bearer');
+    this.relicsListEl = document.getElementById('hud-relics-list');
+    this.coinRadarEl = document.getElementById('hud-coin-radar');
+    this.coinRadarTextEl = document.getElementById('hud-coin-radar-text');
+    this.bossBarContainerEl = document.getElementById('boss-hud-bar');
+    this.bossBarFillEl = document.getElementById('boss-bar-fill');
+    this.bossBarHpTextEl = document.getElementById('boss-bar-hp-text');
     this.toastEl = document.getElementById('hud-toast');
     this.toastTextEl = document.getElementById('hud-toast-text');
     this.splashCardEl = document.getElementById('biome-splash-card');
@@ -44,7 +58,12 @@ export class HUD {
     if (this.hudLayer) this.hudLayer.classList.add('hidden');
   }
 
-  public update(runManager: RunManager, players: Player[]): void {
+  public update(
+    runManager: RunManager,
+    players: Player[],
+    boss?: Boss | null,
+    nearestCoinData?: { dist: number; dx: number; dy: number } | null
+  ): void {
     // 1. Stage & Biome
     if (this.stageNumEl) this.stageNumEl.textContent = `MAP ${runManager.currentStage} / 5`;
     if (this.biomeNameEl) this.biomeNameEl.textContent = runManager.currentBiome.name.toUpperCase();
@@ -68,7 +87,58 @@ export class HUD {
       this.purseAmountEl.textContent = `${runManager.totalPurseCoins}`;
     }
 
-    // 3. Map 4 Sandwich Coin badge
+    // 3. Dynamic Coin Compass Radar (Shown when 10+ coins collected on Maps 1-4)
+    if (this.coinRadarEl && this.coinRadarTextEl) {
+      if (runManager.currentStage < 5 && runManager.coinsCollectedThisStage >= 10 && runManager.coinsCollectedThisStage < 12 && nearestCoinData) {
+        this.coinRadarEl.classList.remove('hidden');
+        const angle = Math.atan2(nearestCoinData.dy, nearestCoinData.dx);
+        let arrow = '➡️';
+        const deg = (angle * 180) / Math.PI;
+        if (deg >= -22.5 && deg < 22.5) arrow = '➡️';
+        else if (deg >= 22.5 && deg < 67.5) arrow = '↘️';
+        else if (deg >= 67.5 && deg < 112.5) arrow = '⬇️';
+        else if (deg >= 112.5 && deg < 157.5) arrow = '↙️';
+        else if (deg >= -67.5 && deg < -22.5) arrow = '↗️';
+        else if (deg >= -112.5 && deg < -67.5) arrow = '⬆️';
+        else if (deg >= -157.5 && deg < -112.5) arrow = '↖️';
+        else arrow = '⬅️';
+        this.coinRadarTextEl.textContent = `${arrow} ${Math.round(nearestCoinData.dist)}px`;
+      } else {
+        this.coinRadarEl.classList.add('hidden');
+      }
+    }
+
+    // 4. Active Relics Dock
+    if (this.relicsListEl) {
+      const relicBadges = Array.from(runManager.activeRelics).map(id => {
+        const item = RELIC_POOL.find(r => r.id === id);
+        return item ? `<span class="relic-mini-badge" title="${item.name}: ${item.description}">${item.icon}</span>` : '';
+      }).join('');
+      this.relicsListEl.innerHTML = relicBadges;
+    }
+
+    // 5. Boss Health Bar (Lord Crustifer)
+    if (this.bossBarContainerEl) {
+      if (boss && boss.isAlive) {
+        this.bossBarContainerEl.classList.remove('hidden');
+        if (this.bossBarFillEl) {
+          const hpPct = Math.max(0, Math.min(100, (boss.health / boss.maxHealth) * 100));
+          this.bossBarFillEl.style.width = `${hpPct}%`;
+          if (boss.attackPhase === 3) {
+            this.bossBarFillEl.style.background = 'linear-gradient(90deg, #ff0054 0%, #ef476f 100%)';
+          } else {
+            this.bossBarFillEl.style.background = 'linear-gradient(90deg, #ef476f 0%, #ffbe0b 100%)';
+          }
+        }
+        if (this.bossBarHpTextEl) {
+          this.bossBarHpTextEl.textContent = `${boss.health} / ${boss.maxHealth} HP (PHASE ${boss.attackPhase})`;
+        }
+      } else {
+        this.bossBarContainerEl.classList.add('hidden');
+      }
+    }
+
+    // 6. Map 4 Sandwich Coin badge
     if (this.sandwichCoinEl) {
       if (runManager.hasCoinOfSandwich) {
         this.sandwichCoinEl.classList.remove('hidden');
@@ -77,7 +147,7 @@ export class HUD {
       }
     }
 
-    // 4. Map 5 Sandwich Active
+    // 7. Map 5 Sandwich Active
     if (this.sandwichBearerEl) {
       const hasCarrier = players.some(p => p.isCarryingSandwich);
       if (hasCarrier) {
@@ -87,7 +157,7 @@ export class HUD {
       }
     }
 
-    // 5. Update Player Cards
+    // 8. Update Player Cards
     for (let i = 0; i < 4; i++) {
       const card = document.getElementById(`p${i + 1}-hud-card`);
       if (!card) continue;

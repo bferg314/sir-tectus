@@ -17,15 +17,29 @@ export class SirMorgani extends Player {
   ): void {
     if (this.swordThrowCooldown > 0) this.swordThrowCooldown -= dt;
 
-    // Sword Throw (Ability Button)
+    // 1. Morgani Shadow Blink (Dash Override)
+    if (input.dashPressed && this.dashCooldown <= 0 && !this.isDashing) {
+      this.isDashing = true;
+      this.dashDuration = 0.22;
+      this.dashCooldown = 0.75;
+      const dir = this.facingLeft ? -1 : 1;
+      this.vx = dir * 650;
+      this.vy = Math.min(this.vy, 0); // Cancels downward momentum for clean aerial blink
+      this.isInvulnerable = true;
+      this.invulnerableTimer = 0.24;
+      this.squashX = 1.45;
+      this.squashY = 0.65;
+    }
+
+    // 2. Piercing Greatsword Throw (Ability Button)
     if (input.abilityPressed && this.swordThrowCooldown <= 0) {
-      this.swordThrowCooldown = 0.95;
+      this.swordThrowCooldown = 0.85;
       const dir = this.facingLeft ? -1 : 1;
       projectiles.push(new Projectile(
         this.x + dir * 16,
         this.y - 18,
-        dir * 580,
-        -50,
+        dir * 600,
+        -40,
         'thrown_sword',
         this.index,
         2

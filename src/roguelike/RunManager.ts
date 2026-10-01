@@ -40,6 +40,10 @@ export class RunManager {
   }
 
   public get isGateUnlocked(): boolean {
+    return this.coinsCollectedThisStage >= 10;
+  }
+
+  public get isPerfectClear(): boolean {
     return this.coinsCollectedThisStage >= 12;
   }
 

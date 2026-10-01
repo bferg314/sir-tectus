@@ -46,10 +46,13 @@ export abstract class Player {
   public attackTimer: number = 0;
   public attackCooldown: number = 0;
   public comboStep: number = 0;
+  public comboResetTimer: number = 0;
+  public consecutivePogos: number = 0;
 
   // Bow Attack
   public isDrawingBow: boolean = false;
   public bowDrawCharge: number = 0; // 0 to 1.0
+  public bowAimUp: boolean = false;
   public quiverAmmo: number = 3;
   public maxQuiverAmmo: number = 3;
   private ammoRegenTimer: number = 0;
@@ -99,10 +102,14 @@ export abstract class Player {
     this.isAttacking = false;
     this.isDrawingBow = false;
     this.bowDrawCharge = 0;
+    this.bowAimUp = false;
     this.isDashing = false;
     this.dashCooldown = 0;
     this.isCarryingSandwich = false;
     this.offscreenTimer = 0;
+    this.comboStep = 0;
+    this.comboResetTimer = 0;
+    this.consecutivePogos = 0;
 
     this.capeNodes = [];
     for (let i = 0; i < 8; i++) {
@@ -117,7 +124,8 @@ export abstract class Player {
     platforms: Platform[],
     projectiles: Projectile[],
     allPlayers: Player[],
-    teamPurse: { coins: number }
+    teamPurse: { coins: number },
+    activeRelics?: Set<string>
   ): void {
     this.animTimer += dt;
 
@@ -129,10 +137,15 @@ export abstract class Player {
       this.isInvulnerable = false;
     }
 
-    // Ammo regeneration (1 arrow every 4.5s)
+    const hasSwiftBoots = activeRelics?.has('swift-boots') ?? false;
+    const hasExtraQuiver = activeRelics?.has('extra-quiver') ?? false;
+
+    // Ammo capacity & regeneration (1 arrow every 4.5s; 2.2s with Elven Quiver)
+    this.maxQuiverAmmo = hasExtraQuiver ? 5 : 3;
+    const ammoRegenInterval = hasExtraQuiver ? 2.2 : 4.5;
     if (this.quiverAmmo < this.maxQuiverAmmo) {
       this.ammoRegenTimer += dt;
-      if (this.ammoRegenTimer >= 4.5) {
+      if (this.ammoRegenTimer >= ammoRegenInterval) {
         this.quiverAmmo++;
         this.ammoRegenTimer = 0;
       }
@@ -144,7 +157,7 @@ export abstract class Player {
       return;
     }
 
-    // 2. Dash Timer
+    // 2. Dash Timer & Universal Dodge Roll for all knights
     if (this.dashCooldown > 0) this.dashCooldown -= dt;
     if (this.isDashing) {
       this.dashDuration -= dt;
@@ -156,15 +169,28 @@ export abstract class Player {
       }
     }
 
+    // Universal Dodge Roll (if not already handled or dashing)
+    if (input.dashPressed && this.dashCooldown <= 0 && !this.isDashing) {
+      this.isDashing = true;
+      this.dashDuration = 0.20;
+      this.dashCooldown = hasSwiftBoots ? 0.55 : 0.82;
+      const dir = this.facingLeft ? -1 : 1;
+      this.vx = dir * (hasSwiftBoots ? 620 : 540);
+      this.isInvulnerable = true;
+      this.invulnerableTimer = 0.20;
+      this.squashY = 0.65;
+      this.squashX = 1.35;
+    }
+
     // 3. Drop-through timer
     if (this.dropThroughTimer > 0) this.dropThroughTimer -= dt;
     if (input.dropThrough) {
       this.dropThroughTimer = 0.28;
     }
 
-    // 4. Horizontal Movement
+    // 4. Horizontal Movement (+20% with Hermes Greaves)
     if (!this.isDashing) {
-      const moveSpeed = 310;
+      const moveSpeed = hasSwiftBoots ? 375 : 310;
       if (Math.abs(input.moveX) > 0.15) {
         this.vx = input.moveX * moveSpeed;
         this.facingLeft = input.moveX < 0;
@@ -228,16 +254,27 @@ export abstract class Player {
     // 6. Platform Collisions
     this.handlePlatformCollisions(dt, platforms);
 
-    // 7. Melee Sword Attack
+    // 7. Melee Sword Attack with 3-Hit Combo
+    if (this.comboResetTimer > 0) {
+      this.comboResetTimer -= dt;
+      if (this.comboResetTimer <= 0) {
+        this.comboStep = 0;
+      }
+    }
+
     if (this.attackCooldown > 0) this.attackCooldown -= dt;
     if (input.attackPressed && this.attackCooldown <= 0 && !this.isDrawingBow) {
       this.isAttacking = true;
-      this.attackTimer = 0.22;
-      this.attackCooldown = 0.3;
-      this.comboStep = (this.comboStep % 3) + 1;
       this.isDownThrusting = !this.isGrounded && input.moveY > 0.4;
       if (this.isDownThrusting) {
         this.vy = Math.max(this.vy, 460); // Fast fall plunge
+        this.attackTimer = 0.24;
+        this.attackCooldown = 0.26;
+      } else {
+        this.comboStep = (this.comboStep % 3) + 1;
+        this.comboResetTimer = 0.65;
+        this.attackTimer = this.comboStep === 3 ? 0.26 : 0.20;
+        this.attackCooldown = this.comboStep === 3 ? 0.36 : 0.24;
       }
     }
     if (this.isAttacking) {
@@ -248,21 +285,28 @@ export abstract class Player {
       }
     }
 
-    // 8. Bow Secondary Attack
+    // 8. Bow Secondary Attack with Directional/Upward Aim
     if (input.aimBow && this.quiverAmmo > 0) {
       this.isDrawingBow = true;
       this.bowDrawCharge = Math.min(1.0, this.bowDrawCharge + dt * 2.2);
+      this.bowAimUp = input.moveY < -0.3; // Aiming upward!
     } else if (input.shootArrow && this.isDrawingBow) {
       // Fire arrow!
       if (this.quiverAmmo > 0) {
         this.quiverAmmo--;
         const arrowDir = this.facingLeft ? -1 : 1;
         const arrowSpeed = 500 + this.bowDrawCharge * 400;
+        let vx = arrowDir * arrowSpeed;
+        let vy = -60 - this.bowDrawCharge * 40;
+        if (this.bowAimUp) {
+          vx = arrowDir * arrowSpeed * 0.62;
+          vy = -arrowSpeed * 0.85; // High arcing sky shot!
+        }
         projectiles.push(new Projectile(
           this.x + arrowDir * 20,
-          this.y - 12,
-          arrowDir * arrowSpeed,
-          -60 - this.bowDrawCharge * 40,
+          this.y - 14,
+          vx,
+          vy,
           'arrow',
           this.index,
           1
@@ -270,6 +314,7 @@ export abstract class Player {
       }
       this.isDrawingBow = false;
       this.bowDrawCharge = 0;
+      this.bowAimUp = false;
     }
 
     // Squash and stretch return to 1
@@ -306,6 +351,7 @@ export abstract class Player {
           this.vy = 0;
           this.isGrounded = true;
           this.jumpsRemaining = this.maxJumps;
+          this.consecutivePogos = 0;
           if (!wasGrounded && prevVy > 440) {
             this.justLandedHard = true;
           }
@@ -329,6 +375,7 @@ export abstract class Player {
             this.vy = 0;
             this.isGrounded = true;
             this.jumpsRemaining = this.maxJumps;
+            this.consecutivePogos = 0;
             if (!wasGrounded && prevVy > 440) {
               this.justLandedHard = true;
             }
@@ -393,11 +440,13 @@ export abstract class Player {
     return false;
   }
 
-  public strikeBubble(teamPurse: { coins: number }): boolean {
+  public strikeBubble(teamPurse: { coins: number }, activeRelics?: Set<string>): boolean {
     if (!this.isInBubble) return false;
 
     // Escalating revive cost: 1st death free (0 coins), 2nd death 1 coin, 3rd death 2 coins, 4th+ 3 coins
-    const cost = Math.max(0, this.deathCount - 1);
+    // Guardian Angel Phylactery relic reduces revive cost by 1 coin
+    const discount = (activeRelics?.has('revive-grace')) ? 1 : 0;
+    const cost = Math.max(0, this.deathCount - 1 - discount);
 
     if (teamPurse.coins >= cost) {
       teamPurse.coins -= cost;
@@ -881,29 +930,45 @@ export abstract class Player {
         ctx.arc(0, 9, 24, Math.PI * 0.1, Math.PI * 0.9);
         ctx.stroke();
       } else {
-        // Sweeping forward crescent slash
-        ctx.strokeStyle = slashColor;
-        ctx.lineWidth = 4.5;
+        // Sweeping forward crescent slash or 3rd-hit Finisher
+        const isFinisher = this.comboStep === 3;
+        const radius = isFinisher ? 38 : 28;
+        ctx.strokeStyle = isFinisher ? '#ffffff' : slashColor;
+        ctx.lineWidth = isFinisher ? 6.5 : 4.5;
         ctx.beginPath();
-        ctx.arc(14, -20, 28, -Math.PI * 0.48, Math.PI * 0.48);
+        ctx.arc(isFinisher ? 18 : 14, -20, radius, -Math.PI * 0.52, Math.PI * 0.52);
         ctx.stroke();
+
         // Inner white razor edge
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = isFinisher ? slashColor : '#ffffff';
+        ctx.lineWidth = isFinisher ? 3.5 : 2;
         ctx.beginPath();
-        ctx.arc(14, -20, 26, -Math.PI * 0.42, Math.PI * 0.42);
+        ctx.arc(isFinisher ? 18 : 14, -20, radius - 3, -Math.PI * 0.46, Math.PI * 0.46);
         ctx.stroke();
+
+        if (isFinisher) {
+          ctx.strokeStyle = outerGlow;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(18, -20, radius + 5, -Math.PI * 0.4, Math.PI * 0.4);
+          ctx.stroke();
+        }
       }
       ctx.restore();
     }
 
     // Bow Drawing Tension & Trajectory Guide
     if (this.isDrawingBow) {
+      ctx.save();
+      if (this.bowAimUp) {
+        ctx.rotate(-Math.PI * 0.28);
+      }
       ctx.strokeStyle = '#92400e';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(14, -18, 14, -Math.PI * 0.3, Math.PI * 0.3);
       ctx.stroke();
+      ctx.restore();
     }
 
     ctx.restore();
@@ -916,9 +981,10 @@ export abstract class Player {
       const speed = 500 + this.bowDrawCharge * 400;
       const startX = this.x + arrowDir * 20;
       const startY = this.y - 14;
-      const vy0 = -60 - this.bowDrawCharge * 40;
+      const vx = this.bowAimUp ? arrowDir * speed * 0.62 : arrowDir * speed;
+      const vy0 = this.bowAimUp ? -speed * 0.85 : (-60 - this.bowDrawCharge * 40);
       for (let t = 0.05; t <= 0.45; t += 0.065) {
-        const px = startX + arrowDir * speed * t;
+        const px = startX + vx * t;
         const py = startY + vy0 * t + 0.5 * 420 * t * t;
         ctx.beginPath();
         ctx.arc(px, py, 2.5, 0, Math.PI * 2);
@@ -944,7 +1010,15 @@ export abstract class Player {
     ctx.restore();
   }
 
-  public getMeleeHitbox(): { x: number; y: number; w: number; h: number; isDownThrust: boolean } | null {
+  public getMeleeHitbox(): {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    isDownThrust: boolean;
+    isFinisher: boolean;
+    comboStep: number;
+  } | null {
     if (!this.isAttacking) return null;
     if (this.isDownThrusting) {
       return {
@@ -952,16 +1026,23 @@ export abstract class Player {
         y: this.y - 6,
         w: 48,
         h: 38,
-        isDownThrust: true
+        isDownThrust: true,
+        isFinisher: false,
+        comboStep: this.comboStep
       };
     }
+    const isFinisher = this.comboStep === 3;
     const reachDir = this.facingLeft ? -1 : 1;
+    const hitboxW = isFinisher ? 84 : 64;
+    const hitboxH = isFinisher ? 48 : 40;
     return {
-      x: reachDir > 0 ? this.x - 12 : this.x - 52,
-      y: this.y - 36,
-      w: 64,
-      h: 40,
-      isDownThrust: false
+      x: reachDir > 0 ? this.x - 12 : this.x - (hitboxW - 12),
+      y: this.y - (isFinisher ? 42 : 36),
+      w: hitboxW,
+      h: hitboxH,
+      isDownThrust: false,
+      isFinisher,
+      comboStep: this.comboStep
     };
   }
 

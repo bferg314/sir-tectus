@@ -19,20 +19,20 @@ export class SirTectus extends Player {
   ): void {
     if (this.boomerangCooldown > 0) this.boomerangCooldown -= dt;
 
-    // 1. Shield Stance / Reflect (Hold Ability)
-    if (input.ability && (!this.activeBoomerang || !this.activeBoomerang.isAlive)) {
+    // 1. Shield Stance / Reflect (Hold Ability) - Always available!
+    if (input.ability) {
       this.isReflecting = true;
-      this.vx *= 0.6; // Shield stance slows horizontal speed
+      this.vx *= 0.72; // Shield stance allows controlled movement
 
       // Reflect nearby enemy projectiles
       for (let i = 0; i < projectiles.length; i++) {
         const proj = projectiles[i];
         if (proj.ownerIndex === -1 && proj.isAlive && !proj.isStuck) {
           const d = Math.hypot(proj.x - this.x, proj.y - (this.y - 20));
-          if (d < 45) {
+          if (d < 48) {
             proj.ownerIndex = this.index;
-            proj.vx = -proj.vx * 1.3;
-            proj.vy = -proj.vy * 1.3;
+            proj.vx = -proj.vx * 1.4;
+            proj.vy = -proj.vy * 1.4;
             proj.damage = 2; // Reflected bonus damage!
           }
         }
@@ -41,15 +41,18 @@ export class SirTectus extends Player {
       this.isReflecting = false;
     }
 
-    // 2. Shield Boomerang Throw (Tap Ability)
-    if (input.abilityPressed && this.boomerangCooldown <= 0) {
-      this.boomerangCooldown = 1.4;
+    // 2. Shield Boomerang Throw (Tap Ability or Attack while shielding)
+    const wantsThrow = (input.abilityPressed && (!this.activeBoomerang || !this.activeBoomerang.isAlive)) ||
+                       (this.isReflecting && input.attackPressed && (!this.activeBoomerang || !this.activeBoomerang.isAlive));
+
+    if (wantsThrow && this.boomerangCooldown <= 0) {
+      this.boomerangCooldown = 1.2;
       const dir = this.facingLeft ? -1 : 1;
       const boomerang = new Projectile(
         this.x + dir * 16,
         this.y - 20,
-        dir * 540,
-        -40,
+        dir * 560,
+        -35,
         'shield_boomerang',
         this.index,
         2

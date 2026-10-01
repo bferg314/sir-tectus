@@ -62,6 +62,7 @@ export class Game {
   public enemies: Enemy[] = [];
   public sandwich: GoldenSandwich | null = null;
   public boss: Boss | null = null;
+  private hitstopTimer: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -86,19 +87,24 @@ export class Game {
 
     this.initControls();
     (window as any).game = this;
+    this.sound.playMusic('title');
     this.ui.showTitleScreen();
     this.loop.start();
   }
 
+  private getMusicThemeForBiome(biome: BiomeConfig): 'easy' | 'medium' | 'hard' {
+    if (biome.tier === 'easy') return 'easy';
+    if (biome.tier === 'medium') return 'medium';
+    return 'hard';
+  }
+
   private initControls(): void {
-    // Keyboard shortcuts: F for fullscreen, M for mute, Esc/P for pause
+    // Keyboard shortcuts: M for mute, Esc/P for pause (Fullscreen via F11 or UI buttons)
     window.addEventListener('keydown', (e: KeyboardEvent) => {
       const active = document.activeElement;
       if (active && active.tagName === 'INPUT') return;
 
-      if (e.code === 'KeyF' && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        this.input.toggleFullscreen();
-      } else if (e.code === 'KeyM') {
+      if (e.code === 'KeyM') {
         const muted = this.sound.toggleMute();
         this.hud.showToast(muted ? '🔇 AUDIO MUTED' : '🔊 AUDIO UNMUTED', 1500);
       } else if (e.key === 'Escape' || e.key === 'p' || e.key === 'P' || e.code === 'KeyP' || e.code === 'Escape') {
@@ -153,6 +159,7 @@ export class Game {
     this.coins = [];
     this.sandwich = null;
     this.boss = null;
+    this.sound.playMusic('title');
     this.ui.showTitleScreen();
   }
 
@@ -246,6 +253,7 @@ export class Game {
     (document.activeElement as HTMLElement)?.blur();
     this.hud.show();
     this.hud.update(this.runManager, this.players);
+    this.sound.playMusic(this.getMusicThemeForBiome(this.runManager.currentBiome));
     this.hud.showBiomeSplash(
       this.runManager.currentStage,
       this.runManager.currentBiome.name,
@@ -259,6 +267,14 @@ export class Game {
     this.gpNav.update(dt);
     this.particles.update(dt);
     this.worldRenderer.update(dt);
+
+    // Hitstop micro-freeze: pauses character/gameplay logic for tactile impact weight
+    if (this.hitstopTimer > 0) {
+      this.hitstopTimer -= dt;
+      this.camera.update(dt, this.players);
+      this.input.postUpdate();
+      return;
+    }
 
     if (this.state === 'paused') {
       const p0 = this.input.getPlayerInput(0);
@@ -303,7 +319,7 @@ export class Game {
         input = this.botBrain.getBotInput(p, this, dt);
       }
 
-      p.updateBase(dt, input, this.currentLevel.platforms, this.projectiles, this.players, purseWrapper);
+      p.updateBase(dt, input, this.currentLevel.platforms, this.projectiles, this.players, purseWrapper, this.runManager.activeRelics);
       p.performAbility(dt, input, this.projectiles);
 
       // Footstep dust & jumping particle effects
@@ -368,23 +384,46 @@ export class Game {
                 }
 
                 const kbDir = p.facingLeft ? -1 : 1;
-                const kbX = hitbox.isDownThrust ? 0 : kbDir * 320;
+                const kbX = hitbox.isDownThrust ? 0 : kbDir * 340;
                 const kbY = hitbox.isDownThrust ? -240 : -180;
-                const killed = e.takeDamage(1, kbX, kbY);
 
-                this.sound.playSwordSwing(1.3);
-                this.sound.playEnemyDamage();
-                this.camera.addTrauma(killed ? 0.35 : 0.2);
-                this.particles.emitHitImpact(e.x, e.y - 18, p.facingLeft, p.color);
-                this.particles.emitCombatText(e.x, e.y - 32, killed ? 'SLAY!' : 'HIT! -1', killed ? '#ef476f' : '#ffd166', 15);
+                const hasFieryBlade = this.runManager.activeRelics.has('fiery-blade');
+                const baseDmg = hitbox.isFinisher ? 2 : 1;
+                const strikeDmg = baseDmg + (hasFieryBlade ? 1 : 0);
+                const killed = e.takeDamage(strikeDmg, kbX, kbY);
+
+                if (hitbox.isFinisher) {
+                  this.sound.playFinisherHit();
+                  this.input.vibrate(p.index, 0.6, 0.9, 200);
+                  this.camera.addTrauma(0.4);
+                  this.hitstopTimer = 0.05;
+                  this.particles.emitSparks(e.x, e.y - 18, '#ffd166', 22);
+                  this.particles.emitCombatText(e.x, e.y - 36, `FINISHER! -${strikeDmg}`, '#ffbe0b', 17);
+                } else {
+                  this.sound.playSwordSwing(1.3);
+                  this.sound.playEnemyDamage();
+                  this.camera.addTrauma(killed ? 0.35 : 0.2);
+                  this.particles.emitHitImpact(e.x, e.y - 18, p.facingLeft, p.color);
+                  this.particles.emitCombatText(e.x, e.y - 32, killed ? 'SLAY!' : `HIT! -${strikeDmg}`, killed ? '#ef476f' : '#ffd166', 15);
+                }
 
                 // Down-thrust Pogo Jump Bounce!
                 if (hitbox.isDownThrust) {
-                  p.vy = e.type === 'spore_shroom' ? -720 : -560;
+                  p.consecutivePogos = (p.consecutivePogos || 0) + 1;
+                  const pogoBonus = Math.min(p.consecutivePogos, 5);
+                  p.vy = e.type === 'spore_shroom' ? -740 : (-560 - pogoBonus * 25);
                   p.jumpsRemaining = 1;
-                  this.sound.playPogoBounce();
+                  if (p.consecutivePogos >= 3) {
+                    this.sound.playMegaPogo();
+                    this.hitstopTimer = 0.04;
+                    this.camera.addTrauma(0.3);
+                    this.input.vibrate(p.index, 0.4, 0.7, 150);
+                    this.particles.emitCombatText(p.x, p.y - 20, `POGO x${p.consecutivePogos}!`, '#06d6a0', 18);
+                  } else {
+                    this.sound.playPogoBounce();
+                    this.particles.emitCombatText(p.x, p.y - 20, e.type === 'spore_shroom' ? 'SUPER POGO!' : 'POGO!', '#2ec4b6', 16);
+                  }
                   this.particles.emitPogoShockwave(p.x, p.y + 10, p.color);
-                  this.particles.emitCombatText(p.x, p.y - 20, e.type === 'spore_shroom' ? 'SUPER POGO!' : 'POGO!', '#2ec4b6', 16);
                 }
 
                 // Dropped loot on kill
@@ -427,16 +466,36 @@ export class Game {
               hitbox.y < bossBottom &&
               hitbox.y + hitbox.h > bossTop
             ) {
-              const slain = this.boss.takeDamage(1);
-              this.sound.playEnemyDamage();
-              this.camera.addTrauma(slain ? 0.8 : 0.25);
+              const hasFieryBlade = this.runManager.activeRelics.has('fiery-blade');
+              const baseDmg = hitbox.isFinisher ? 2 : 1;
+              const strikeDmg = baseDmg + (hasFieryBlade ? 1 : 0);
+              const slain = this.boss.takeDamage(strikeDmg);
+
+              if (hitbox.isFinisher) {
+                this.sound.playFinisherHit();
+                this.input.vibrate(p.index, 0.7, 1.0, 220);
+                this.hitstopTimer = 0.06;
+                this.camera.addTrauma(slain ? 0.9 : 0.45);
+                this.particles.emitCombatText(this.boss.x, this.boss.y - 90, `FINISHER! -${strikeDmg}`, '#ffbe0b', 20);
+              } else {
+                this.sound.playEnemyDamage();
+                this.camera.addTrauma(slain ? 0.8 : 0.25);
+                this.particles.emitCombatText(this.boss.x, this.boss.y - 90, `-${strikeDmg} HP`, '#ffd166', 16);
+              }
               this.particles.emitSparks(this.boss.x, this.boss.y - 50, '#ffbe0b', 16);
-              this.particles.emitCombatText(this.boss.x, this.boss.y - 90, '-1 HP', '#ffd166', 16);
 
               if (hitbox.isDownThrust) {
-                p.vy = -580;
+                p.consecutivePogos = (p.consecutivePogos || 0) + 1;
+                p.vy = -590;
                 p.jumpsRemaining = 1;
-                this.sound.playPogoBounce();
+                if (p.consecutivePogos >= 3) {
+                  this.sound.playMegaPogo();
+                  this.hitstopTimer = 0.04;
+                  this.camera.addTrauma(0.3);
+                  this.input.vibrate(p.index, 0.4, 0.7, 150);
+                } else {
+                  this.sound.playPogoBounce();
+                }
                 this.particles.emitRing(p.x, p.y, '#ffd166', 45);
               }
 
@@ -452,7 +511,7 @@ export class Game {
           if (teammate.isInBubble) {
             const d = Math.hypot(teammate.x - p.x, teammate.y - p.y);
             if (d < 68) {
-              const revived = teammate.strikeBubble(purseWrapper);
+              const revived = teammate.strikeBubble(purseWrapper, this.runManager.activeRelics);
               if (revived) {
                 this.sound.playRevive();
                 this.particles.emitRing(teammate.x, teammate.y, '#06d6a0', 32);
@@ -649,15 +708,26 @@ export class Game {
           this.coins.forEach(c => {
             if (!c.isCollected && Math.hypot(proj.x - c.x, proj.y - c.y) < 38) {
               if (c.type === 'standard') {
+                const prevCount = this.runManager.coinsCollectedThisStage;
                 this.runManager.collectCoin();
                 this.sound.playCoinCollect(this.runManager.coinsCollectedThisStage);
                 this.particles.emitCoinShine(c.x, c.y);
                 c.isCollected = true;
-                if (this.runManager.isGateUnlocked) {
+                if (this.runManager.isGateUnlocked && prevCount < 10) {
                   this.sound.playGateUnlock();
-                  this.hud.showToast('12 COINS COLLECTED! THE GOLDEN GATE IS UNSEALED!', 4000);
+                  this.hud.showToast('10 COINS COLLECTED! THE GOLDEN GATE IS UNSEALED!', 4000);
                   const gate = this.currentLevel!.props.find(pr => pr.type === 'gate');
                   if (gate) gate.active = true;
+                }
+                if (this.runManager.isPerfectClear && prevCount < 12) {
+                  this.sound.playPerfectClear();
+                  this.runManager.totalPurseCoins += 15;
+                  this.players.forEach(pl => {
+                    pl.health = pl.maxHealth;
+                    this.particles.emitRing(pl.x, pl.y, '#06d6a0', 36);
+                  });
+                  this.hud.showToast('⭐ PERFECT CLEAR! 12/12 COINS! +15 GOLD & FULL RESTORATION! ⭐', 5000);
+                  this.camera.addTrauma(0.4);
                 }
               }
             }
@@ -854,22 +924,35 @@ export class Game {
 
     // 4. Update Coins & Collection
     const livingKnights = this.players.filter(p => p.isAlive && !p.isInBubble);
+    const magnetRadius = this.runManager.activeRelics.has('coin-magnet') ? 220 : 75;
     this.coins.forEach(c => {
-      c.update(dt, livingKnights, 75);
+      c.update(dt, livingKnights, magnetRadius);
 
       livingKnights.forEach(p => {
         if (c.checkCollection(p.x, p.y - 20, 22)) {
           if (c.type === 'standard') {
+            const prevCount = this.runManager.coinsCollectedThisStage;
             this.runManager.collectCoin();
             this.sound.playCoinCollect(this.runManager.coinsCollectedThisStage);
             this.particles.emitCoinShine(c.x, c.y);
 
-            if (this.runManager.isGateUnlocked) {
+            if (this.runManager.isGateUnlocked && prevCount < 10) {
               this.sound.playGateUnlock();
-              this.hud.showToast('12 COINS COLLECTED! THE GOLDEN GATE IS UNSEALED!', 4000);
+              this.hud.showToast('10 COINS COLLECTED! THE GOLDEN GATE IS UNSEALED!', 4000);
               // Unlock gate prop
               const gate = this.currentLevel!.props.find(pr => pr.type === 'gate');
               if (gate) gate.active = true;
+            }
+
+            if (this.runManager.isPerfectClear && prevCount < 12) {
+              this.sound.playPerfectClear();
+              this.runManager.totalPurseCoins += 15;
+              this.players.forEach(pl => {
+                pl.health = pl.maxHealth;
+                this.particles.emitRing(pl.x, pl.y, '#06d6a0', 36);
+              });
+              this.hud.showToast('⭐ PERFECT CLEAR! 12/12 COINS! +15 GOLD & FULL RESTORATION! ⭐', 5000);
+              this.camera.addTrauma(0.4);
             }
           } else if (c.type === 'sandwich_coin') {
             this.runManager.hasCoinOfSandwich = true;
@@ -912,20 +995,45 @@ export class Game {
 
     // 7. Boss Update (Lord Crustifer)
     if (this.boss && this.boss.isAlive) {
-      this.boss.update(dt, this.players, this.projectiles);
+      this.boss.update(dt, this.players, this.projectiles, this.enemies, this.sound, this.particles, this.camera);
     }
 
     // 8. Check Wipe (All players in bubble)
     const allTrapped = this.players.every(p => p.isInBubble || !p.isAlive);
     if (allTrapped && this.players.length > 0) {
       this.state = 'game_over';
+      this.sound.stopMusic();
       this.hud.hide();
       this.ui.showGameOver(this.runManager.currentStage);
     }
 
-    // 9. Camera update
+    // 9. Camera & HUD update
     this.camera.update(dt, this.players);
-    this.hud.update(this.runManager, this.players);
+
+    // Dynamic Coin Compass Radar (active when 10+ coins collected)
+    let nearestCoinData: { dist: number; dx: number; dy: number } | null = null;
+    if (this.runManager.coinsCollectedThisStage >= 10 && this.runManager.coinsCollectedThisStage < 12) {
+      const uncollected = this.coins.filter(cn => cn.type === 'standard' && !cn.isCollected);
+      if (uncollected.length > 0 && livingKnights.length > 0) {
+        const pLeader = livingKnights[0];
+        let minDist = 999999;
+        let bestCoin = uncollected[0];
+        for (const cn of uncollected) {
+          const d = Math.hypot(cn.x - pLeader.x, cn.y - pLeader.y);
+          if (d < minDist) {
+            minDist = d;
+            bestCoin = cn;
+          }
+        }
+        nearestCoinData = {
+          dist: minDist,
+          dx: bestCoin.x - pLeader.x,
+          dy: bestCoin.y - pLeader.y
+        };
+      }
+    }
+
+    this.hud.update(this.runManager, this.players, this.boss, nearestCoinData);
 
     // 10. Off-screen player damage & penalty (lower straggler takes damage, higher player stays safe)
     this.updateOffscreenPlayers(dt);
@@ -939,6 +1047,7 @@ export class Game {
       // Trigger Lord Crustifer secret boss fight!
       this.state = 'boss_battle';
       this.sound.playGateUnlock();
+      this.sound.playMusic('boss');
       this.camera.addTrauma(0.8);
       this.boss = new Boss(this.currentLevel!.extractionAltarPos!.x, this.currentLevel!.extractionAltarPos!.y - 80);
       this.hud.showToast('LORD CRUSTIFER AWAKENS! DEFEAT HIM FOR THE TRUE ENDING!', 5000);
@@ -951,6 +1060,7 @@ export class Game {
   private openBranchingPortals(): void {
     this.state = 'portal_choice';
     this.hud.hide();
+    this.sound.playMusic('title');
     const portalOptions = this.runManager.getBranchingPortalOptions();
 
     this.ui.showBranchingPortals(portalOptions, (chosenBiome: BiomeConfig) => {
@@ -990,6 +1100,7 @@ export class Game {
   private triggerStandardVictory(): void {
     this.state = 'victory';
     this.hud.hide();
+    this.sound.stopMusic();
     const time = this.runManager.getElapsedTimeSeconds();
     SaveManager.recordStandardVictory(time, this.runManager.totalCoinsGatheredLifetimeRun);
     this.sound.playSandwichFanfare();
@@ -999,6 +1110,7 @@ export class Game {
   private triggerTrueEnding(): void {
     this.state = 'true_ending';
     this.hud.hide();
+    this.sound.stopMusic();
     const time = this.runManager.getElapsedTimeSeconds();
     SaveManager.recordTrueEnding(time, this.runManager.totalCoinsGatheredLifetimeRun);
     this.sound.playSandwichFanfare();
@@ -1011,6 +1123,7 @@ export class Game {
     const downed = p.takeDamage(amount);
     this.sound.playHit(downed);
     this.camera.addTrauma(downed ? 0.65 : 0.35);
+    this.input.vibrate(p.index, 0.7, 1.0, 220);
     this.worldRenderer.triggerDamageFlash();
     this.particles.emitBrokenHeart(p.x, p.y - 25);
     this.particles.emitCombatText(p.x, p.y - 35, '-1 ❤️', '#ef476f', 16);
