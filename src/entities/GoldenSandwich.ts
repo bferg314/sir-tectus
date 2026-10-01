@@ -9,6 +9,8 @@ export class GoldenSandwich {
   public isDispensed: boolean = false;
   public width: number = 32;
   public height: number = 24;
+  public tossCooldown: number = 0;
+  public lastTossedByIndex: number = -1;
   private animTimer: number = 0;
 
   constructor(x: number, y: number) {
@@ -22,12 +24,15 @@ export class GoldenSandwich {
     this.vx = 80;
     this.vy = -180;
     this.carrierIndex = -1;
+    this.lastTossedByIndex = -1;
+    this.tossCooldown = 0;
     this.isDispensed = true;
   }
 
   public update(dt: number, platforms: Platform[], carriers: { index: number; x: number; y: number; isAlive: boolean }[]): void {
     if (!this.isDispensed) return;
     this.animTimer += dt;
+    if (this.tossCooldown > 0) this.tossCooldown -= dt;
 
     if (this.carrierIndex >= 0) {
       // Find carrier
@@ -70,9 +75,13 @@ export class GoldenSandwich {
       for (let i = 0; i < carriers.length; i++) {
         const c = carriers[i];
         if (c.isAlive) {
+          if (this.tossCooldown > 0 && c.index === this.lastTossedByIndex) {
+            continue; // Former thrower has a short grace window so teammates can catch
+          }
           const dist = Math.hypot(c.x - this.x, c.y - this.y);
-          if (dist < 32) {
+          if (dist < 36) {
             this.carrierIndex = c.index;
+            this.lastTossedByIndex = -1;
             break;
           }
         }
@@ -82,6 +91,8 @@ export class GoldenSandwich {
 
   public toss(facingLeft: boolean): void {
     if (this.carrierIndex < 0) return;
+    this.lastTossedByIndex = this.carrierIndex;
+    this.tossCooldown = 0.5;
     this.carrierIndex = -1;
     this.vx = facingLeft ? -450 : 450;
     this.vy = -240;

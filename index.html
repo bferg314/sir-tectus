@@ -34,6 +34,10 @@
                 <span id="hud-coin-tally">0 / 12</span>
                 <span class="coin-label">COINS</span>
               </div>
+              <div id="hud-coin-radar" class="coin-radar-badge hidden" title="Remaining Coin Compass">
+                <span class="radar-pulse">🧭</span>
+                <span id="hud-coin-radar-text">LOCATING COINS...</span>
+              </div>
               <div id="hud-sandwich-coin" class="sandwich-coin-badge hidden" title="The Coin of Sandwich">
                 🥪 COIN OF SANDWICH
               </div>
@@ -43,12 +47,26 @@
             </div>
 
             <div style="display: flex; align-items: center; gap: 8px;">
+              <!-- Active Relics Dock -->
+              <div id="hud-relics-list" class="relics-dock" title="Active Party Relics"></div>
               <div id="hud-team-purse">
                 <span class="purse-icon">💰</span>
                 <span id="hud-purse-amount">0</span>
               </div>
               <button id="btn-hud-pause" class="icon-button" tabindex="-1" style="width: 32px; height: 32px; padding: 0; font-size: 14px;" title="Pause Quest (Esc / P / Start)" aria-label="Pause Quest">⏸️</button>
             </div>
+          </div>
+
+          <!-- Epic Lord Crustifer Boss Health Bar (Top Center) -->
+          <div id="boss-hud-bar" class="boss-health-bar-container hidden">
+            <div class="boss-hud-titles">
+              <span class="boss-hud-name">LORD CRUSTIFER</span>
+              <span class="boss-hud-subtitle">Sovereign of the Infinite Banquet</span>
+            </div>
+            <div class="boss-bar-track">
+              <div id="boss-bar-fill" class="boss-bar-fill" style="width: 100%;"></div>
+            </div>
+            <span id="boss-bar-hp-text" class="boss-bar-hp-text">40 / 40 HP</span>
           </div>
 
           <!-- Player Cards Docked at Top -->

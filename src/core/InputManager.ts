@@ -36,9 +36,9 @@ export class InputManager {
 
   private initKeyboardListeners(): void {
     window.addEventListener('keydown', (e: KeyboardEvent) => {
-      // Toggle Fullscreen with F11 or 'f' (when not in a text input)
-      if (e.key === 'F11' || (e.key.toLowerCase() === 'f' && !this.isModifierActive(e))) {
-        if (e.key === 'F11') e.preventDefault();
+      // Toggle Fullscreen with F11 (when not in a text input)
+      if (e.key === 'F11') {
+        e.preventDefault();
         this.toggleFullscreen();
       }
 
@@ -58,6 +58,24 @@ export class InputManager {
       this.keyStates.clear();
       this.prevKeyStates.clear();
     });
+  }
+
+  public vibrate(playerIndex: number, weakMagnitude: number = 0.4, strongMagnitude: number = 0.6, durationMs: number = 150): void {
+    const gp = this.activeGamepads[playerIndex];
+    if (!gp) return;
+    try {
+      const actuator = (gp as any).vibrationActuator;
+      if (actuator && typeof actuator.playEffect === 'function') {
+        actuator.playEffect('dual-rumble', {
+          startDelay: 0,
+          duration: durationMs,
+          weakMagnitude: Math.min(1, Math.max(0, weakMagnitude)),
+          strongMagnitude: Math.min(1, Math.max(0, strongMagnitude))
+        }).catch(() => {});
+      }
+    } catch {
+      // Gamepad haptics not supported or permitted in this context
+    }
   }
 
   private isModifierActive(e: KeyboardEvent): boolean {
