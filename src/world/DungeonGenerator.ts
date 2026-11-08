@@ -357,12 +357,13 @@ export class DungeonGenerator {
       const stair1: Platform = { x: rx + 50, y: ry + 510, w: 260, h: 22, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
       const stair2: Platform = { x: rx + 260, y: ry + 420, w: 240, h: 22, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
       const stair3: Platform = { x: rx + 90, y: ry + 330, w: 240, h: 22, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
-      const stair4: Platform = { x: rx + 250, y: ry + 325, w: 190, h: 22, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
+      // No fourth stair: it sat 20 units from the dais and read as one platform (#2). From stair3 the dais
+      // is a 50-unit rise across a 130-unit gap, an easy running jump (one jump clears about 134 up and 250 across).
       const topBalcony: Platform = { x: rx + 120, y: ry + 130, w: 220, h: 22, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
       const ceilingStepY = ry + (ry === 0 ? 105 : 65);
       const ceilingStep: Platform = { x: rx + 200, y: ceilingStepY, w: 180, h: 22, oneWay: true, color: biome.platformColor, borderColor: biome.platformBorder, material: biome.material };
 
-      platforms.push(exitDais, stair1, stair2, stair3, stair4, topBalcony, ceilingStep);
+      platforms.push(exitDais, stair1, stair2, stair3, topBalcony, ceilingStep);
 
       // Symmetrical torches flanking the gate on the dais wings
       props.push({
@@ -382,7 +383,7 @@ export class DungeonGenerator {
         lightRadius: 120
       });
 
-      coinSpawns.push({ x: stair4.x + stair4.w * 0.5, y: stair4.y - 28 });
+      coinSpawns.push({ x: stair3.x + stair3.w + 65, y: stair3.y - 70 }); // in the jump from stair3 to the dais
       enemySpawns.push({ x: stair2.x + 80, y: stair2.y - 30, type: pickEnemy(true) });
       return;
     }
